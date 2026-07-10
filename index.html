@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RMS">
+<meta name="theme-color" content="#6d28d9">
+<link rel="icon" type="image/png" href="https://www.pristinepearlpharma.in/images/alt-logo.png">
+<title>Reimbursement Management System | Pristine Pearl Pharma</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Manrope','sans-serif'], display: ['Sora','sans-serif'] },
+        colors: {
+          brand: { 50:'#f5f3ff',100:'#ede9fe',200:'#ddd6fe',300:'#c4b5fd',400:'#a78bfa',500:'#8b5cf6',600:'#7c3aed',700:'#6d28d9',800:'#5b21b6',900:'#4c1d95' },
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body{font-family:'Manrope',sans-serif;background:#f4f5fb;}
+  h1,h2,h3,.font-display{font-family:'Sora',sans-serif;}
+  ::-webkit-scrollbar{width:8px;height:8px;}
+  ::-webkit-scrollbar-thumb{background:#c7c9e8;border-radius:8px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  .grad-purple{background:linear-gradient(135deg,#7c3aed 0%,#6366f1 50%,#4f46e5 100%);}
+  .grad-pink{background:linear-gradient(135deg,#ec4899 0%,#f472b6 100%);}
+  .grad-blue{background:linear-gradient(135deg,#0ea5e9 0%,#38bdf8 100%);}
+  .grad-green{background:linear-gradient(135deg,#10b981 0%,#34d399 100%);}
+  .grad-orange{background:linear-gradient(135deg,#f97316 0%,#fb923c 100%);}
+  .grad-red{background:linear-gradient(135deg,#ef4444 0%,#f87171 100%);}
+  .card{background:#fff;border-radius:18px;box-shadow:0 1px 3px rgba(20,20,50,.06),0 8px 24px -12px rgba(76,29,149,.10);}
+  .glass-nav{background:rgba(255,255,255,0.7);backdrop-filter:blur(14px);}
+  .sidebar-link{display:flex;align-items:center;gap:.65rem;padding:.6rem .9rem;border-radius:12px;color:#e9e4ff;font-weight:600;font-size:.875rem;transition:.15s;}
+  .sidebar-link:hover{background:rgba(255,255,255,.10);}
+  .sidebar-link.active{background:rgba(255,255,255,.18);color:#fff;}
+  .status-pill{display:inline-flex;align-items:center;gap:.35rem;padding:.28rem .7rem;border-radius:999px;font-size:.72rem;font-weight:700;white-space:nowrap;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font-weight:700;font-size:.85rem;border-radius:12px;padding:.6rem 1.1rem;transition:.15s;cursor:pointer;}
+  .btn-primary{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;box-shadow:0 6px 16px -4px rgba(79,70,229,.5);}
+  .btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px);}
+  .btn-outline{background:#fff;border:1.5px solid #e5e7eb;color:#374151;}
+  .btn-outline:hover{border-color:#a78bfa;color:#6d28d9;}
+  .btn-green{background:linear-gradient(135deg,#10b981,#34d399);color:#fff;}
+  .btn-red{background:linear-gradient(135deg,#ef4444,#f87171);color:#fff;}
+  /* ---- Global action loading feedback ---- */
+  #globalLoadingBar{position:fixed;top:0;left:0;width:100%;height:3px;z-index:9999;pointer-events:none;opacity:0;transition:opacity .25s ease;}
+  #globalLoadingBar.active{opacity:1;}
+  #globalLoadingBarFill{height:100%;width:0%;background:linear-gradient(90deg,#7c3aed,#4f46e5,#a78bfa);box-shadow:0 0 10px rgba(124,58,237,.7);border-radius:0 3px 3px 0;transition:width .35s ease;}
+  #globalLoadingBar.active #globalLoadingBarFill{animation:barGrow 1.1s ease-in-out infinite;}
+  @keyframes barGrow{0%{width:15%;}50%{width:75%;}100%{width:92%;}}
+  body.is-busy{cursor:progress;}
+  body.is-busy .btn{opacity:.6;pointer-events:none;filter:saturate(.6);}
+  .btn.is-loading{opacity:.85;pointer-events:none;position:relative;color:transparent!important;}
+  .btn.is-loading::after{content:'';position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;border:2px solid rgba(255,255,255,.5);border-top-color:#fff;animation:btnSpin .6s linear infinite;}
+  .btn-outline.is-loading::after{border:2px solid rgba(124,58,237,.25);border-top-color:#7c3aed;}
+  @keyframes btnSpin{to{transform:rotate(360deg);}}
+  .btn-amber{background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;}
+  input,select,textarea{outline:none;}
+  .field{width:100%;border:1.5px solid #e5e7eb;border-radius:12px;padding:.6rem .85rem;font-size:.875rem;background:#fbfbff;transition:.15s;}
+  .field:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.15);background:#fff;}
+  .label{font-size:.75rem;font-weight:700;color:#6b7280;margin-bottom:.3rem;display:block;text-transform:uppercase;letter-spacing:.03em;}
+  .tab-btn{padding:.55rem 1rem;font-weight:700;font-size:.82rem;border-radius:10px;color:#6b7280;cursor:pointer;}
+  .tab-btn.active{background:#ede9fe;color:#6d28d9;}
+  .modal-backdrop{position:fixed;inset:0;background:rgba(30,20,60,.45);backdrop-filter:blur(3px);z-index:50;display:flex;align-items:center;justify-content:center;padding:1rem;}
+  .toast{animation:slideIn .25s ease-out;}
+  @keyframes slideIn{from{transform:translateY(-16px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .spin{animation:spin 1s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  table.data-table{width:100%;border-collapse:collapse;font-size:.83rem;}
+  table.data-table th{text-align:left;padding:.65rem .9rem;color:#6b7280;font-weight:700;font-size:.7rem;text-transform:uppercase;letter-spacing:.04em;border-bottom:2px solid #f1f0fb;white-space:nowrap;}
+  table.data-table td{padding:.7rem .9rem;border-bottom:1px solid #f1f0fb;white-space:nowrap;}
+  table.data-table tr:hover td{background:#faf9ff;}
+  @media print{
+    body *{visibility:hidden;}
+    #printArea, #printArea *{visibility:visible;}
+    #printArea{position:absolute;top:0;left:0;width:100%;}
+  }
+
+  /* ---- Mobile app-like shell ---- */
+  html,body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}
+  #hamburgerBtn{display:none;}
+  #sidebarOverlay{display:none;}
+  @media (max-width: 1023px){
+    aside#appSidebar{
+      transform:translateX(-100%);
+      transition:transform .28s cubic-bezier(.4,0,.2,1);
+      width:78vw;
+      max-width:290px;
+      padding-top:calc(1rem + env(safe-area-inset-top));
+    }
+    aside#appSidebar.open{transform:translateX(0);box-shadow:0 0 40px rgba(0,0,0,.35);}
+    main#appMain{margin-left:0!important;}
+    #hamburgerBtn{display:inline-flex;}
+    #sidebarOverlay.open{display:block;position:fixed;inset:0;background:rgba(20,10,40,.45);z-index:29;backdrop-filter:blur(1px);}
+    header.app-header{padding-left:1rem;padding-right:1rem;padding-top:calc(.85rem + env(safe-area-inset-top));gap:.5rem;}
+    #viewContainer{padding:1rem!important;padding-bottom:calc(1.5rem + env(safe-area-inset-bottom))!important;}
+    #globalSearchWrap{display:none;}
+    #pageTitle{font-size:1.05rem;}
+    #pageSubtitle{display:none;}
+    table.data-table th, table.data-table td{padding:.55rem .6rem;font-size:.78rem;}
+    table.data-table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    table.data-table thead,table.data-table tbody{display:table;width:100%;}
+    .card{border-radius:16px;}
+    .modal-backdrop > div{max-height:92vh;border-radius:16px;}
+  }
+  @media (min-width: 1024px){
+    aside#appSidebar{transform:none!important;}
+  }
+  .overflow-x-auto{-webkit-overflow-scrolling:touch;}
+</style>
+</head>
+<body class="text-gray-800">
+
+<div id="globalLoadingBar"><div id="globalLoadingBarFill"></div></div>
+<div id="toastHost" class="fixed top-4 right-4 z-[100] flex flex-col gap-2"></div>
+
+<!-- ============ LOGIN VIEW ============ -->
+<div id="loginView" class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-6">
+      <div class="w-16 h-16 grad-purple rounded-2xl mx-auto flex items-center justify-center shadow-lg shadow-brand-500/30 mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <h1 class="text-2xl font-display font-bold text-gray-800">Reimbursement Management</h1>
+      <p class="text-sm text-gray-500 mt-1">Pristine Pearl Pharma Pvt Ltd</p>
+    </div>
+    <div class="card p-7">
+      <div>
+        <label class="label">Username</label>
+        <input id="loginUsername" class="field mb-4" placeholder="Enter username" autocomplete="username">
+        <label class="label">Password</label>
+        <input id="loginPassword" type="password" class="field mb-2" placeholder="Enter password" autocomplete="current-password">
+        <p id="loginError" class="text-red-500 text-xs font-semibold mt-2 hidden"></p>
+        <button id="loginBtn" class="btn btn-primary w-full mt-5 py-3">
+          <span id="loginBtnText">Sign In</span>
+        </button>
+      </div>
+      <div class="mt-6 pt-5 border-t border-gray-100 text-xs text-gray-400 space-y-1">
+        <p class="font-bold text-gray-500 mb-1">Demo Roles</p>
+        <p>Entry — <b>Entry</b> / accounts.entry</p>
+        <p>Commercial Audit — <b>Audit</b> / commercial.audit</p>
+        <p>Approver — <b>Approver</b> / acc2026</p>
+        <p>Payments — <b>Payments</b> / accounts.payments</p>
+        <p>View Only (Team-restricted) — user01 / user02 / user03</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP SHELL ============ -->
+<div id="appShell" class="hidden min-h-screen flex">
+  <!-- MOBILE OVERLAY -->
+  <div id="sidebarOverlay" onclick="closeSidebar()"></div>
+  <!-- SIDEBAR -->
+  <aside id="appSidebar" class="w-64 grad-purple shrink-0 min-h-screen p-4 flex flex-col fixed top-0 left-0 bottom-0 overflow-y-auto z-30">
+    <div class="flex items-center gap-3 px-2 py-3 mb-4">
+      <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <div>
+        <p class="text-white font-display font-bold text-sm leading-tight">Reimbursement</p>
+        <p class="text-white/60 text-[11px]">Management System</p>
+      </div>
+    </div>
+    <nav id="sidebarNav" class="flex flex-col gap-1"></nav>
+    <div class="mt-auto pt-4 border-t border-white/15">
+      <div class="flex items-center gap-3 px-2 py-2">
+        <div id="userAvatar" class="w-9 h-9 rounded-full bg-white/25 flex items-center justify-center text-white font-bold text-sm"></div>
+        <div class="min-w-0">
+          <p id="userFullName" class="text-white text-sm font-bold truncate"></p>
+          <p id="userRole" class="text-white/60 text-[11px] truncate"></p>
+        </div>
+      </div>
+      <button id="logoutBtn" class="sidebar-link w-full mt-1 text-white/80">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Sign Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main id="appMain" class="flex-1 ml-64 min-h-screen flex flex-col">
+    <header class="app-header glass-nav sticky top-0 z-20 border-b border-gray-100 px-8 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3 min-w-0">
+        <button id="hamburgerBtn" onclick="toggleSidebar()" class="w-9 h-9 shrink-0 rounded-lg border border-gray-200 items-center justify-center text-gray-600 hover:bg-gray-50">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="min-w-0">
+          <h2 id="pageTitle" class="text-xl font-display font-bold text-gray-800 truncate">Dashboard</h2>
+          <p id="pageSubtitle" class="text-xs text-gray-400 mt-0.5">Overview of reimbursement activity</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <div id="globalSearchWrap" class="relative">
+          <input id="globalSearch" class="field !w-64 !py-2 pl-9" placeholder="Search request / employee...">
+          <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
+        </div>
+      </div>
+    </header>
+    <div id="viewContainer" class="p-8 flex-1"></div>
+  </main>
+</div>
+
+<!-- ============ MODAL HOST ============ -->
+<div id="modalHost"></div>
+
+<script>
+/* =========================================================
+   CONFIG
+========================================================= */
+const API_URL = 'https://script.google.com/macros/s/AKfycbxdhUqzGEp_p5yENYUfAcg6m_BYnuGwOg4xXq-g63mwBxqSDI2V8hQIyTIeYGMF5JsGXA/exec';
+const MANPOWER_API_URL = 'https://script.google.com/macros/s/AKfycbxdOs22qKMLlf-0PCOjb4KHBXW2WtHaWKclaSFW5vRVxfk87d3PltASdbRGcVDi_yabSw/exec';
+
+const STATUS_COLORS = {
+  'Draft':'bg-gray-100 text-gray-600',
+  'Pending Commercial Audit':'bg-amber-100 text-amber-700',
+  'Under Audit':'bg-blue-100 text-blue-700',
+  'Query Raised':'bg-red-100 text-red-700',
+  'Waiting for Accounts Reply':'bg-orange-100 text-orange-700',
+  'Audit Completed':'bg-indigo-100 text-indigo-700',
+  'Pending Approval':'bg-cyan-100 text-cyan-700',
+  'Pending Payment':'bg-purple-100 text-purple-700',
+  'Payment Released':'bg-teal-100 text-teal-700',
+  'Completed':'bg-emerald-100 text-emerald-700',
+  'Returned':'bg-rose-100 text-rose-700'
+};
+
+const NAV_BY_ROLE = {
+  'Entry': [
+    {id:'dashboard', label:'Dashboard', icon:'grid'},
+    {id:'newRequest', label:'New Request', icon:'plus'},
+    {id:'myRequests', label:'My Requests', icon:'list'},
+    {id:'reports', label:'Reports', icon:'chart'}
+  ],
+  'Audit': [
+    {id:'dashboard', label:'Dashboard', icon:'grid'},
+    {id:'pendingAudit', label:'Pending Audit', icon:'check'},
+    {id:'allRequests', label:'All Requests', icon:'list'},
+    {id:'reports', label:'Reports', icon:'chart'}
+  ],
+  'Approver': [
+    {id:'dashboard', label:'Dashboard', icon:'grid'},
+    {id:'pendingApproval', label:'Pending Approval', icon:'check'},
+    {id:'allRequests', label:'All Requests', icon:'list'},
+    {id:'reports', label:'Reports', icon:'chart'}
+  ],
+  'Payments': [
+    {id:'dashboard', label:'Dashboard', icon:'grid'},
+    {id:'pendingPayment', label:'Pending Payment', icon:'cash'},
+    {id:'allRequests', label:'All Requests', icon:'list'},
+    {id:'reports', label:'Reports', icon:'chart'}
+  ],
+  'Viewer': [
+    {id:'dashboard', label:'Dashboard', icon:'grid'},
+    {id:'auditPendingTab', label:'Audit Pending', icon:'check'},
+    {id:'approvalPendingTab', label:'Approval Pending', icon:'check'},
+    {id:'paymentPendingTab', label:'Payment Pending', icon:'cash'},
+    {id:'completedPaymentTab', label:'Completed Payments', icon:'cash'},
+    {id:'allRequests', label:'All Requests', icon:'list'},
+    {id:'reports', label:'Reports', icon:'chart'}
+  ]
+};
+
+const ICONS = {
+  grid:'<path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/>',
+  plus:'<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>',
+  list:'<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/>',
+  chart:'<path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14"/>',
+  check:'<path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
+  cash:'<path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>'
+};
+
+/* =========================================================
+   STATE
+========================================================= */
+let STATE = {
+  user: null,
+  view: 'dashboard',
+  claimTypes: [],
+  requestCache: {},
+  pendingFiles: { Attachment: [], SponsorSheet: [], MailPDF: [] },
+  currentDetailId: null,
+  charts: {}
+};
+
+/* =========================================================
+   API HELPER  (POST as text/plain to dodge CORS preflight)
+========================================================= */
+let __busyCount = 0;
+function __setBusy(on) {
+  const bar = document.getElementById('globalLoadingBar');
+  if (on) {
+    __busyCount++;
+    document.body.classList.add('is-busy');
+    if (bar) bar.classList.add('active');
+  } else {
+    __busyCount = Math.max(0, __busyCount - 1);
+    if (__busyCount === 0) {
+      document.body.classList.remove('is-busy');
+      if (bar) bar.classList.remove('active');
+    }
+  }
+}
+
+// Every action in the app (save, audit, approve, send-to-payment, report
+// loads, etc.) funnels through this one function, so this is the single
+// place that switches on the loading animation — a top progress bar plus
+// a soft dim/disable on every .btn while the request is in flight.
+async function api(action, payload) {
+  if (!API_URL || API_URL.indexOf('PASTE_YOUR') === 0) {
+    throw new Error('Backend URL not configured yet. Paste your Apps Script Web App URL into API_URL in the script.');
+  }
+  __setBusy(true);
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action, payload: payload || {} })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Request failed');
+    return data;
+  } finally {
+    __setBusy(false);
+  }
+}
+
+// Wraps a specific button's click handler so that button (not just the
+// global bar) shows its own inline spinner and is disabled for the
+// duration of the async action — used for the primary workflow actions
+// (Approve / Query / Return / Send / Process Payment, etc).
+async function withButtonLoading(btnEl, fn) {
+  if (!btnEl) return fn();
+  btnEl.classList.add('is-loading');
+  btnEl.disabled = true;
+  try {
+    return await fn();
+  } finally {
+    btnEl.classList.remove('is-loading');
+    btnEl.disabled = false;
+  }
+}
+
+function toast(msg, type) {
+  type = type || 'success';
+  const colors = { success:'bg-emerald-500', error:'bg-red-500', info:'bg-indigo-500' };
+  const el = document.createElement('div');
+  el.className = 'toast ' + colors[type] + ' text-white text-sm font-semibold px-4 py-3 rounded-xl shadow-lg';
+  el.textContent = msg;
+  document.getElementById('toastHost').appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = '.3s'; setTimeout(() => el.remove(), 300); }, 3200);
+}
+
+function fmtMoney(n) {
+  n = Number(n) || 0;
+  return '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtDate(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+}
+function fmtDateTime(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  if (isNaN(dt)) return d;
+  return dt.toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function statusPill(status) {
+  const cls = STATUS_COLORS[status] || 'bg-gray-100 text-gray-600';
+  return `<span class="status-pill ${cls}">${status}</span>`;
+}
+function initials(name) {
+  if (!name) return '?';
+  return name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+}
+
+/* =========================================================
+   AUTH
+========================================================= */
+document.getElementById('loginBtn').addEventListener('click', doLogin);
+document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+async function doLogin() {
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.classList.add('hidden');
+  if (!username || !password) { errEl.textContent = 'Please enter username and password.'; errEl.classList.remove('hidden'); return; }
+
+  const btnText = document.getElementById('loginBtnText');
+  btnText.innerHTML = '<svg class="w-4 h-4 spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="9" stroke-opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/></svg> Signing in...';
+
+  // Fixed demo credentials (also verified server-side against Users sheet when backend is configured)
+  const DEMO = {
+    'Entry': { password: 'accounts.entry', role: 'Entry', fullName: 'Accounts Entry User', teamAccess: [] },
+    'Audit': { password: 'commercial.audit', role: 'Audit', fullName: 'Commercial Audit User', teamAccess: [] },
+    'Approver': { password: 'acc2026', role: 'Approver', fullName: 'Approver', teamAccess: [] },
+    'Payments': { password: 'accounts.payments', role: 'Payments', fullName: 'Accounts Payment User', teamAccess: [] },
+    'user01': { password: 'muji@16103', role: 'Viewer', fullName: 'Viewer - Tamil Nadu Team-1',
+      teamAccess: ['Tamil Nadu Team-1'] },
+    'user02': { password: 'uthaytn02@16102', role: 'Viewer', fullName: 'Viewer - TN2 / Delhi / J&K',
+      teamAccess: ['Tamil Nadu Team-2','Delhi Team','J&K Team'] },
+    'user03': { password: 'ec@naseer', role: 'Viewer', fullName: 'Viewer - Kerala / Karnataka / Goa',
+      teamAccess: ['Kerala Team','Karnataka Team','Goa Team'] }
+  };
+
+  try {
+    let user = null;
+    try {
+      const res = await api('login', { username, password });
+      user = res.user;
+    } catch (e) {
+      // fall back to local demo credentials if backend not reachable/configured
+      const d = DEMO[username];
+      if (d && d.password === password) user = { username, role: d.role, fullName: d.fullName, teamAccess: d.teamAccess || [] };
+    }
+    if (!user) {
+      errEl.textContent = 'Invalid username or password.';
+      errEl.classList.remove('hidden');
+      btnText.textContent = 'Sign In';
+      return;
+    }
+    STATE.user = user;
+    sessionStorage.setItem('rms_user', JSON.stringify(user));
+    enterApp();
+  } catch (e) {
+    errEl.textContent = e.message;
+    errEl.classList.remove('hidden');
+    btnText.textContent = 'Sign In';
+  }
+}
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  sessionStorage.removeItem('rms_user');
+  STATE.user = null;
+  document.getElementById('appShell').classList.add('hidden');
+  document.getElementById('loginView').classList.remove('hidden');
+});
+
+function enterApp() {
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('appShell').classList.remove('hidden');
+  document.getElementById('userAvatar').textContent = initials(STATE.user.fullName);
+  document.getElementById('userFullName').textContent = STATE.user.fullName;
+  document.getElementById('userRole').textContent = STATE.user.role + ' Role';
+  buildSidebar();
+  loadClaimTypes();
+  const defaultView = NAV_BY_ROLE[STATE.user.role][0].id;
+  navigate(defaultView);
+}
+
+function toggleSidebar() {
+  document.getElementById('appSidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+function closeSidebar() {
+  document.getElementById('appSidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+}
+
+function buildSidebar() {
+  const nav = NAV_BY_ROLE[STATE.user.role] || [];
+  const el = document.getElementById('sidebarNav');
+  el.innerHTML = nav.map(n => `
+    <div class="sidebar-link" data-view="${n.id}" onclick="navigate('${n.id}')">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4.5 h-4.5" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${ICONS[n.icon]}</svg>
+      ${n.label}
+    </div>`).join('');
+}
+
+async function loadClaimTypes() {
+  try {
+    const res = await api('getClaimTypes', {});
+    STATE.claimTypes = res.data;
+  } catch (e) {
+    STATE.claimTypes = [
+      {ClaimType:'Travel Reimbursement'},{ClaimType:'Medical Reimbursement'},
+      {ClaimType:'Sponsorship / CME'},{ClaimType:'Field Expense'},{ClaimType:'Others'}
+    ];
+  }
+}
+
+/* =========================================================
+   ROUTER
+========================================================= */
+const PAGE_META = {
+  dashboard: ['Dashboard','Overview of reimbursement activity'],
+  newRequest: ['New Reimbursement Request','Create a request and route it to Commercial'],
+  myRequests: ['My Requests','Requests you have created'],
+  allRequests: ['All Requests','Every reimbursement request in the system'],
+  pendingAudit: ['Pending Commercial Audit','Requests awaiting verification, audit or query response'],
+  pendingApproval: ['Pending Approval','Requests audited by Commercial and awaiting Approver sign-off'],
+  pendingPayment: ['Pending Payment','Approved claims ready to be paid'],
+  auditPendingTab: ['Audit Pending','Requests awaiting Commercial Audit, newest first'],
+  approvalPendingTab: ['Approval Pending','Requests awaiting Approver sign-off, newest first'],
+  paymentPendingTab: ['Payment Pending','Approved claims awaiting payment, newest first'],
+  completedPaymentTab: ['Completed Payments','Claims that have been paid, newest first'],
+  reports: ['Reports','Analytics & exportable registers'],
+  requestDetail: ['Request Detail','Full reimbursement lifecycle']
+};
+
+function navigate(view, params) {
+  if (view === 'requestDetail' && STATE.view !== 'requestDetail') {
+    STATE.lastListView = STATE.view;
+  }
+  STATE.view = view;
+  STATE.viewParams = params || {};
+  document.querySelectorAll('.sidebar-link').forEach(el => el.classList.toggle('active', el.dataset.view === view));
+  closeSidebar();
+  window.scrollTo(0, 0);
+  const meta = PAGE_META[view] || ['',''];
+  document.getElementById('pageTitle').textContent = meta[0];
+  document.getElementById('pageSubtitle').textContent = meta[1];
+  const c = document.getElementById('viewContainer');
+  c.innerHTML = '<div class="flex items-center justify-center py-24"><svg class="w-8 h-8 spin text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="9" stroke-opacity=".2"/><path d="M21 12a9 9 0 00-9-9"/></svg></div>';
+  const isViewer = STATE.user.role === 'Viewer';
+  const renderers = {
+    dashboard: renderDashboard,
+    newRequest: renderNewRequest,
+    myRequests: () => renderRequestList({ createdBy: STATE.user.username }),
+    allRequests: () => renderRequestList(isViewer ? { teamAccess: STATE.user.teamAccess } : {}),
+    pendingAudit: () => renderRequestList({ statusIn: ['Pending Commercial Audit','Under Audit','Query Raised','Waiting for Accounts Reply'] }),
+    pendingApproval: () => renderRequestList({ statusIn: ['Pending Approval'] }),
+    pendingPayment: () => renderRequestList({ statusIn: ['Audit Completed','Pending Payment'] }),
+    auditPendingTab: () => renderPendingTab(['Pending Commercial Audit','Under Audit','Query Raised','Waiting for Accounts Reply']),
+    approvalPendingTab: () => renderPendingTab(['Pending Approval']),
+    paymentPendingTab: () => renderPendingTab(['Audit Completed','Pending Payment']),
+    completedPaymentTab: () => renderPendingTab(['Payment Released','Completed']),
+    reports: renderReports,
+    requestDetail: () => renderRequestDetail(STATE.viewParams.requestId)
+  };
+  (renderers[view] || renderDashboard)();
+}
+
+document.getElementById('globalSearch').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.value.trim()) {
+    navigate('allRequests', {}); 
+    setTimeout(() => renderRequestList({ search: e.target.value.trim() }), 50);
+  }
+});
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+async function renderDashboard() {
+  const c = document.getElementById('viewContainer');
+  let d;
+  try {
+    const dashPayload = STATE.user.role === 'Viewer' ? { teamAccess: STATE.user.teamAccess } : {};
+    d = (await api('getDashboard', dashPayload)).data;
+  } catch (e) {
+    d = { totalRequests:0, pendingAudit:0, pendingPayment:0, completed:0, returned:0, totalClaimValue:0, totalAuditedValue:0, totalPaidValue:0, statusBreakdown:{}, claimTypeBreakdown:{}, monthly:{} };
+    toast('Showing empty dashboard — connect backend for live data', 'info');
+  }
+
+  const cards = [
+    { label:'Total Requests', value:d.totalRequests, grad:'grad-purple', icon:'list' },
+    { label:'Pending Audit', value:d.pendingAudit, grad:'grad-orange', icon:'check' },
+    { label:'Pending Payment', value:d.pendingPayment, grad:'grad-blue', icon:'cash' },
+    { label:'Completed', value:d.completed, grad:'grad-green', icon:'check' },
+    { label:'Returned', value:d.returned, grad:'grad-red', icon:'list' },
+  ];
+  const moneyCards = [
+    { label:'Total Claim Value', value: fmtMoney(d.totalClaimValue), grad:'grad-purple' },
+    { label:'Total Audited Value', value: fmtMoney(d.totalAuditedValue), grad:'grad-blue' },
+    { label:'Total Paid Value', value: fmtMoney(d.totalPaidValue), grad:'grad-green' },
+  ];
+
+  c.innerHTML = `
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      ${cards.map(cd => `
+        <div class="card p-5 relative overflow-hidden">
+          <div class="w-10 h-10 ${cd.grad} rounded-xl flex items-center justify-center mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${ICONS[cd.icon]}</svg>
+          </div>
+          <p class="text-2xl font-display font-extrabold text-gray-800">${cd.value}</p>
+          <p class="text-xs text-gray-500 font-semibold mt-1">${cd.label}</p>
+        </div>`).join('')}
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      ${moneyCards.map(cd => `
+        <div class="card p-6" style="background:${cd.grad==='grad-purple'?'linear-gradient(135deg,#7c3aed,#4f46e5)':cd.grad==='grad-blue'?'linear-gradient(135deg,#0ea5e9,#38bdf8)':'linear-gradient(135deg,#10b981,#34d399)'}">
+          <p class="text-white/80 text-xs font-bold uppercase tracking-wide">${cd.label}</p>
+          <p class="text-white text-3xl font-display font-extrabold mt-2">${cd.value}</p>
+        </div>`).join('')}
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div class="card p-6">
+        <h3 class="font-display font-bold text-gray-800 mb-4">Status Breakdown</h3>
+        <canvas id="statusChart" height="220"></canvas>
+      </div>
+      <div class="card p-6">
+        <h3 class="font-display font-bold text-gray-800 mb-4">Claim Value by Type</h3>
+        <canvas id="claimTypeChart" height="220"></canvas>
+      </div>
+      <div class="card p-6 lg:col-span-2">
+        <h3 class="font-display font-bold text-gray-800 mb-4">Monthly Claim Trend</h3>
+        <canvas id="monthlyChart" height="100"></canvas>
+      </div>
+    </div>
+  `;
+
+  const palette = ['#7c3aed','#ec4899','#0ea5e9','#10b981','#f97316','#ef4444','#6366f1','#14b8a6','#f59e0b','#f43f5e'];
+  const statusLabels = Object.keys(d.statusBreakdown);
+  drawChart('statusChart', 'doughnut', statusLabels, [{ data: Object.values(d.statusBreakdown), backgroundColor: palette }]);
+
+  const typeLabels = Object.keys(d.claimTypeBreakdown);
+  drawChart('claimTypeChart', 'bar', typeLabels, [{ label:'Claim Value', data: Object.values(d.claimTypeBreakdown), backgroundColor:'#7c3aed', borderRadius:8 }]);
+
+  const monthLabels = Object.keys(d.monthly);
+  drawChart('monthlyChart', 'line', monthLabels, [{ label:'Claim Value', data: Object.values(d.monthly), borderColor:'#4f46e5', backgroundColor:'rgba(124,58,237,.12)', fill:true, tension:.35 }]);
+}
+
+function drawChart(id, type, labels, datasets) {
+  const ctx = document.getElementById(id);
+  if (!ctx) return;
+  if (STATE.charts[id]) STATE.charts[id].destroy();
+  STATE.charts[id] = new Chart(ctx, {
+    type, data: { labels, datasets },
+    options: { responsive:true, plugins:{ legend:{ display: type==='doughnut', position:'bottom', labels:{ boxWidth:10, font:{size:10} } } }, scales: type==='doughnut' ? {} : { y:{ beginAtZero:true } } }
+  });
+}
+
+/* =========================================================
+   NEW REQUEST (ENTRY MODULE)
+========================================================= */
+function renderNewRequest() {
+  const c = document.getElementById('viewContainer');
+  const claimOpts = STATE.claimTypes.map(t => `<option>${t.ClaimType}</option>`).join('');
+  STATE.pendingFiles = { Attachment: [], SponsorSheet: [], MailPDF: [] };
+
+  c.innerHTML = `
+  <div class="max-w-4xl">
+
+    <!-- MAIL DETAILS -->
+    <div class="card p-7 mb-5">
+      <h3 class="font-display font-bold text-gray-800 mb-4">Mail Details</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div><label class="label">Entry Date</label><input type="date" id="f_entryDate" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div><label class="label">Entry Person Name</label><input id="f_entryPersonName" class="field" value="${STATE.user.fullName || ''}" placeholder="Name of the person entering this claim"></div>
+        <div><label class="label">Mail Received Date</label><input type="date" id="f_mailDate" class="field"></div>
+        <div>
+          <label class="label">Mail Approver — Emp ID</label>
+          <div class="flex gap-2">
+            <input id="f_mailApproverCode" class="field" placeholder="Enter Emp ID">
+            <button type="button" class="btn btn-outline shrink-0" onclick="lookupMailApprover(this)">Fetch</button>
+          </div>
+        </div>
+        <div><label class="label">Mail Approver Name</label><input id="f_mailApproverName" class="field" placeholder="Auto-filled from lookup" readonly></div>
+        <div><label class="label">Mail Approval Date</label><input type="date" id="f_mailApprovalDate" class="field"></div>
+      </div>
+    </div>
+
+    <!-- CLAIMANT TYPE -->
+    <div class="card p-7 mb-5">
+      <h3 class="font-display font-bold text-gray-800 mb-1">Claimant</h3>
+      <p class="text-xs text-gray-400 mb-4">Is this claim for a staff member, or a direct entry (Doctor / Company / Others)?</p>
+      <div class="flex gap-4 mb-4">
+        <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
+          <input type="radio" name="f_partyType" value="Staff" checked onchange="toggleParty()"> Staff
+        </label>
+        <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
+          <input type="radio" name="f_partyType" value="Direct" onchange="toggleParty()"> Direct
+        </label>
+      </div>
+
+      <div id="staffBlock">
+        <div class="flex gap-3 mb-4">
+          <input id="empSearch" class="field" placeholder="Enter employee code or name...">
+          <button type="button" class="btn btn-primary shrink-0" onclick="lookupEmployee(this)">Search</button>
+        </div>
+        <div id="empResult" class="mb-2"></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div><label class="label">Employee Code</label><input id="f_empCode" class="field" placeholder="Auto-filled from lookup"></div>
+          <div><label class="label">Employee Name</label><input id="f_empName" class="field" placeholder="Auto-filled from lookup"></div>
+          <div><label class="label">Designation</label><input id="f_designation" class="field"></div>
+          <div><label class="label">Department</label><input id="f_department" class="field"></div>
+          <div><label class="label">Team</label><input id="f_team" class="field" placeholder="Auto-filled from lookup"></div>
+          <div><label class="label">Location</label><input id="f_location" class="field"></div>
+        </div>
+      </div>
+
+      <div id="directBlock" class="hidden">
+        <label class="label">Direct Type</label>
+        <div class="flex gap-4 mb-4">
+          <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
+            <input type="radio" name="f_directType" value="Doctor" checked> Dr
+          </label>
+          <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
+            <input type="radio" name="f_directType" value="Company"> Company
+          </label>
+          <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 cursor-pointer">
+            <input type="radio" name="f_directType" value="Others"> Others
+          </label>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div><label class="label">Name</label><input id="f_directName" class="field" placeholder="Dr. / Company / Other name"></div>
+          <div><label class="label">Location</label><input id="f_directLocation" class="field"></div>
+          <div class="col-span-2"><label class="label">Details</label><textarea id="f_directDetails" class="field" rows="2" placeholder="Additional details (address, contact, etc.)"></textarea></div>
+        </div>
+      </div>
+    </div>
+
+    <form id="requestForm" class="card p-7 space-y-5">
+      <h3 class="font-display font-bold text-gray-800">Request Details</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div><label class="label">Claim Type</label><select id="f_claimType" class="field">${claimOpts}</select></div>
+        <div class="col-span-2"><label class="label">Subject</label><input id="f_subject" class="field" placeholder="Brief subject of the claim"></div>
+
+        <div>
+          <label class="label">Request For</label>
+          <select id="f_requestForType" class="field" onchange="toggleRequestFor()">
+            <option value="Staff">Staff</option>
+            <option value="Doctor">Doctor</option>
+            <option value="Cab">Cab</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div><label class="label">Claim Amount (₹)</label><input type="number" step="0.01" id="f_claimAmount" class="field" placeholder="0.00"></div>
+
+        <div id="reqForStaffBlock" class="col-span-2">
+          <label class="label">Request For — Emp ID</label>
+          <div class="flex gap-2">
+            <input id="f_reqForCode" class="field" placeholder="Enter Emp ID">
+            <button type="button" class="btn btn-outline shrink-0" onclick="lookupRequestForEmployee(this)">Fetch</button>
+          </div>
+          <div id="reqForResult" class="mt-2 text-xs text-gray-500"></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+            <div><label class="label">Name</label><input id="f_reqForName" class="field" placeholder="Fetched automatically — editable"></div>
+            <div><label class="label">Designation</label><input id="f_reqForDesignation" class="field" placeholder="Fetched automatically — editable"></div>
+            <div><label class="label">Department</label><input id="f_reqForDepartment" class="field" placeholder="Fetched automatically — editable"></div>
+            <div><label class="label">Team</label><input id="f_reqForTeam" class="field" placeholder="Fetched automatically — editable"></div>
+          </div>
+        </div>
+        <div id="reqForDetailsBlock" class="col-span-2 hidden">
+          <label class="label">Request For — Details</label>
+          <input id="f_reqForDetails" class="field" placeholder="Name / details of the Doctor, Cab vendor, or Other party">
+        </div>
+
+        <div class="col-span-2"><label class="label">Remarks</label><textarea id="f_remarks" class="field" rows="3"></textarea></div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-gray-100">
+        ${fileDropZone('Attachment', 'Multiple Attachments', true)}
+        ${fileDropZone('SponsorSheet', 'Sponsor Sheet', false)}
+        ${fileDropZone('MailPDF', 'Mail PDF', false)}
+      </div>
+
+      <div class="flex justify-end gap-3 pt-3 border-t border-gray-100">
+        <button type="button" class="btn btn-outline" onclick="submitRequest(this,false)">Save as Draft</button>
+        <button type="button" class="btn btn-primary" onclick="submitRequest(this,true)">Save & Send to Commercial</button>
+      </div>
+    </form>
+  </div>`;
+  toggleRequestFor();
+}
+
+function toggleParty() {
+  const val = document.querySelector('input[name="f_partyType"]:checked').value;
+  document.getElementById('staffBlock').classList.toggle('hidden', val !== 'Staff');
+  document.getElementById('directBlock').classList.toggle('hidden', val !== 'Direct');
+}
+
+function toggleRequestFor() {
+  const val = document.getElementById('f_requestForType').value;
+  document.getElementById('reqForStaffBlock').classList.toggle('hidden', val !== 'Staff');
+  document.getElementById('reqForDetailsBlock').classList.toggle('hidden', val === 'Staff');
+}
+
+async function quickEmpLookup(codeInputId) {
+  const code = document.getElementById(codeInputId).value.trim();
+  if (!code) { toast('Enter an Emp ID first.', 'error'); return null; }
+  const employees = await fetchAllEmployees();
+  const cl = code.toLowerCase();
+  let match = employees.find(e => String(pickField(e, ['Emp Id','Employee Code','EmpId'])).toLowerCase() === cl);
+  if (!match) match = employees.find(e => Object.values(e).some(v => String(v).toLowerCase().includes(cl)));
+  return match || null;
+}
+
+async function lookupMailApprover(btnEl) {
+  await withButtonLoading(btnEl, async () => {
+    try {
+      const match = await quickEmpLookup('f_mailApproverCode');
+      if (!match) { toast('No employee found for that Emp ID.', 'error'); return; }
+      document.getElementById('f_mailApproverName').value = pickField(match, ['Employee Name','Name']);
+    } catch (e) { toast('Could not reach Manpower system (' + e.message + ').', 'error'); }
+  });
+}
+
+async function lookupRequestForEmployee(btnEl) {
+  const resultEl = document.getElementById('reqForResult');
+  await withButtonLoading(btnEl, async () => {
+    try {
+      const match = await quickEmpLookup('f_reqForCode');
+      if (!match) {
+        resultEl.innerHTML = '<span class="text-red-500">No employee found for that Emp ID. You can enter the details manually below.</span>';
+        document.getElementById('f_reqForName').value = '';
+        document.getElementById('f_reqForDesignation').value = '';
+        document.getElementById('f_reqForDepartment').value = '';
+        document.getElementById('f_reqForTeam').value = '';
+        return;
+      }
+      const name = pickField(match, ['Employee Name','Name']);
+      const designation = pickField(match, ['Designation','Short Designation']);
+      const department = pickField(match, ['Department']);
+      const team = pickField(match, ['Team']);
+      document.getElementById('f_reqForName').value = name;
+      document.getElementById('f_reqForDesignation').value = designation;
+      document.getElementById('f_reqForDepartment').value = department;
+      document.getElementById('f_reqForTeam').value = team;
+      resultEl.innerHTML = '<span class="text-emerald-600 font-semibold">✓ Fetched from Manpower system.</span>';
+    } catch (e) {
+      resultEl.innerHTML = `<span class="text-red-500">Could not reach Manpower system (${e.message}). Enter the details manually below.</span>`;
+    }
+  });
+}
+
+function fileDropZone(category, label, multiple) {
+  return `
+  <div>
+    <label class="label">${label}</label>
+    <label class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl py-5 cursor-pointer hover:border-brand-400 hover:bg-brand-50/40 transition">
+      <svg class="w-6 h-6 text-brand-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+      <span class="text-xs text-gray-500 font-semibold">Click to upload</span>
+      <input type="file" class="hidden" ${multiple ? 'multiple' : ''} onchange="handleFileSelect(event,'${category}')">
+    </label>
+    <div id="fileList_${category}" class="mt-2 space-y-1"></div>
+  </div>`;
+}
+
+function handleFileSelect(evt, category) {
+  const files = Array.from(evt.target.files);
+  const readers = files.map(f => new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: f.name, mimeType: f.type || 'application/octet-stream', base64: reader.result.split(',')[1], category });
+    reader.readAsDataURL(f);
+  }));
+  Promise.all(readers).then(results => {
+    if (category === 'Attachment') STATE.pendingFiles.Attachment.push(...results);
+    else STATE.pendingFiles[category] = results;
+    renderFileList(category);
+  });
+}
+
+function renderFileList(category) {
+  const list = category === 'Attachment' ? STATE.pendingFiles.Attachment : STATE.pendingFiles[category];
+  const el = document.getElementById('fileList_' + category);
+  if (!el) return;
+  el.innerHTML = list.map((f, i) => `
+    <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-1.5 text-xs">
+      <span class="truncate">${f.name}</span>
+      <button onclick="removeFile('${category}', ${i})" class="text-red-400 hover:text-red-600 font-bold ml-2">✕</button>
+    </div>`).join('');
+}
+function removeFile(category, idx) {
+  if (category === 'Attachment') STATE.pendingFiles.Attachment.splice(idx, 1);
+  else STATE.pendingFiles[category] = [];
+  renderFileList(category);
+}
+
+// Your Manpower Code.gs only routes action=getAllEmployees (and getSummaryStats)
+// through doGet/doPost — there is no "search" action wired up, so we fetch the
+// full employee list once, cache it in memory, and filter client-side.
+async function fetchAllEmployees() {
+  if (STATE.employeeCache) return STATE.employeeCache;
+  const url = MANPOWER_API_URL + '?action=getAllEmployees';
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (e) {
+    throw new Error('Network error reaching the Manpower system. Check your connection.');
+  }
+  const text = await res.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    // The response wasn't JSON — almost always means the Manpower web app
+    // returned an HTML page (a Google sign-in page or an Apps Script error
+    // page) instead of data. Give an actionable message instead of the raw
+    // "Unexpected token '<'" parse error.
+    throw new Error('Manpower system returned a webpage instead of data. Check that the Manpower web app is deployed with "Who has access: Anyone" and that MANPOWER_API_URL points at the latest /exec deployment.');
+  }
+  if (!data.success) throw new Error(data.error || 'Manpower API returned an error.');
+  STATE.employeeCache = data.employees || [];
+  return STATE.employeeCache;
+}
+
+// Field names come straight from the Manpower sheet headers (e.g. "Emp Id",
+// "Employee Name", "Department", "Short Designation", "Current City", "HQ").
+// We try a few likely header variants since exact casing/wording can differ.
+function pickField(emp, candidates) {
+  for (const key of candidates) {
+    if (emp[key] !== undefined && emp[key] !== '') return emp[key];
+  }
+  // fallback: case-insensitive partial match on header name
+  const lowerCandidates = candidates.map(c => c.toLowerCase());
+  for (const k of Object.keys(emp)) {
+    if (lowerCandidates.some(c => k.toLowerCase().includes(c.toLowerCase()) || c.toLowerCase().includes(k.toLowerCase()))) {
+      if (emp[k]) return emp[k];
+    }
+  }
+  return '';
+}
+
+async function lookupEmployee(btnEl) {
+  const q = document.getElementById('empSearch').value.trim();
+  const resultEl = document.getElementById('empResult');
+  if (!q) return;
+  resultEl.innerHTML = '<p class="text-xs text-gray-400">Searching Manpower system...</p>';
+  await withButtonLoading(btnEl, async () => {
+  try {
+    const employees = await fetchAllEmployees();
+    const ql = q.toLowerCase();
+    const matches = employees.filter(emp =>
+      Object.values(emp).some(v => String(v).toLowerCase().includes(ql))
+    ).slice(0, 8);
+
+    if (!matches.length) {
+      resultEl.innerHTML = '<p class="text-xs text-red-500">No matching employee found. You can enter details manually below.</p>';
+      return;
+    }
+    if (matches.length === 1) {
+      applyEmployee(matches[0]);
+      return;
+    }
+    // multiple matches — let the user pick
+    resultEl.innerHTML = `<p class="text-xs text-gray-500 font-semibold mb-2">${matches.length} matches — select one:</p>` +
+      matches.map((emp, i) => {
+        const name = pickField(emp, ['Employee Name','Name']);
+        const code = pickField(emp, ['Emp Id','Employee Code','EmpId']);
+        const dept = pickField(emp, ['Department']);
+        return `<div class="flex items-center gap-3 bg-gray-50 hover:bg-brand-50 border border-gray-200 rounded-xl px-4 py-2.5 mb-2 cursor-pointer" onclick='selectEmployeeMatch(${i})'>
+          <div class="w-8 h-8 rounded-full bg-brand-500 text-white flex items-center justify-center font-bold text-xs shrink-0">${initials(name)}</div>
+          <div class="min-w-0"><p class="text-sm font-bold text-gray-800 truncate">${name}</p><p class="text-xs text-gray-500">${code} · ${dept}</p></div>
+        </div>`;
+      }).join('');
+    STATE._empMatches = matches;
+  } catch (e) {
+    resultEl.innerHTML = `<p class="text-xs text-red-500">Could not reach Manpower system (${e.message}). Enter employee details manually.</p>`;
+  }
+  });
+}
+
+function selectEmployeeMatch(i) {
+  applyEmployee(STATE._empMatches[i]);
+}
+
+function applyEmployee(emp) {
+  const resultEl = document.getElementById('empResult');
+  const name = pickField(emp, ['Employee Name','Name']);
+  const code = pickField(emp, ['Emp Id','Employee Code','EmpId']);
+  const designation = pickField(emp, ['Designation','Short Designation']);
+  const department = pickField(emp, ['Department']);
+  const team = pickField(emp, ['Team']);
+  const location = pickField(emp, ['Current City','HQ','Current State']);
+  const resigned = pickField(emp, ['Date Of Resignation']);
+
+  document.getElementById('f_empCode').value = code;
+  document.getElementById('f_empName').value = name;
+  document.getElementById('f_designation').value = designation;
+  document.getElementById('f_department').value = department;
+  document.getElementById('f_team').value = team;
+  document.getElementById('f_location').value = location;
+
+  resultEl.innerHTML = `<div class="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
+    <div class="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shrink-0">${initials(name)}</div>
+    <div class="min-w-0"><p class="text-sm font-bold text-gray-800 truncate">${name}</p><p class="text-xs text-gray-500">${code} · ${designation} · ${department}</p></div>
+    ${resigned ? '<span class="status-pill bg-red-100 text-red-700 ml-auto shrink-0">Resigned</span>' : ''}
+  </div>`;
+}
+
+async function submitRequest(btnEl, sendToCommercial) {
+  const partyType = document.querySelector('input[name="f_partyType"]:checked').value;
+  const requestForType = document.getElementById('f_requestForType').value;
+
+  const payload = {
+    entryDate: document.getElementById('f_entryDate').value,
+    mailReceivedDate: document.getElementById('f_mailDate').value,
+    mailApproverEmpCode: document.getElementById('f_mailApproverCode').value,
+    mailApproverName: document.getElementById('f_mailApproverName').value,
+    mailApprovalDate: document.getElementById('f_mailApprovalDate').value,
+
+    partyType: partyType,
+    employeeCode: partyType === 'Staff' ? document.getElementById('f_empCode').value : '',
+    employeeName: partyType === 'Staff' ? document.getElementById('f_empName').value : '',
+    designation: partyType === 'Staff' ? document.getElementById('f_designation').value : '',
+    department: partyType === 'Staff' ? document.getElementById('f_department').value : '',
+    team: partyType === 'Staff' ? document.getElementById('f_team').value : '',
+    location: partyType === 'Staff' ? document.getElementById('f_location').value : document.getElementById('f_directLocation').value,
+
+    directType: partyType === 'Direct' ? document.querySelector('input[name="f_directType"]:checked').value : '',
+    directName: partyType === 'Direct' ? document.getElementById('f_directName').value : '',
+    directDetails: partyType === 'Direct' ? document.getElementById('f_directDetails').value : '',
+
+    subject: document.getElementById('f_subject').value,
+    claimType: document.getElementById('f_claimType').value,
+
+    requestForType: requestForType,
+    requestForEmpCode: requestForType === 'Staff' ? document.getElementById('f_reqForCode').value : '',
+    requestForName: requestForType === 'Staff' ? document.getElementById('f_reqForName').value : '',
+    requestForDesignation: requestForType === 'Staff' ? document.getElementById('f_reqForDesignation').value : '',
+    requestForDepartment: requestForType === 'Staff' ? document.getElementById('f_reqForDepartment').value : '',
+    requestForTeam: requestForType === 'Staff' ? document.getElementById('f_reqForTeam').value : '',
+    requestForDetails: requestForType !== 'Staff' ? document.getElementById('f_reqForDetails').value : '',
+
+    claimAmount: parseFloat(document.getElementById('f_claimAmount').value) || 0,
+    remarks: document.getElementById('f_remarks').value,
+    createdBy: STATE.user.username,
+    entryPersonName: document.getElementById('f_entryPersonName').value || STATE.user.fullName
+  };
+
+  const claimantName = partyType === 'Staff' ? payload.employeeName : payload.directName;
+  if (!claimantName || !payload.subject || !payload.claimAmount) {
+    toast('Please fill the claimant name (Employee/Direct), Subject and Claim Amount.', 'error'); return;
+  }
+  if (requestForType === 'Staff' && !payload.requestForName) {
+    toast('Please fetch or enter the Name for "Request For" (Emp ID lookup above).', 'error'); return;
+  }
+  await withButtonLoading(btnEl, async () => {
+    try {
+      const res = await api('createRequest', payload);
+      const requestId = res.requestId;
+
+      const allFiles = [...STATE.pendingFiles.Attachment, ...STATE.pendingFiles.SponsorSheet, ...STATE.pendingFiles.MailPDF];
+      if (allFiles.length) {
+        const uploadRes = await api('uploadAttachments', { requestId, uploadedBy: STATE.user.username, files: allFiles });
+        if (uploadRes.failed && uploadRes.failed.length) {
+          toast(uploadRes.failed.length + ' file(s) failed to upload: ' + uploadRes.failed.map(f => f.name).join(', '), 'error');
+        }
+      }
+      if (sendToCommercial) {
+        await api('sendToCommercial', { requestId, userBy: STATE.user.username });
+        toast('Request ' + requestId + ' submitted to Commercial.');
+      } else {
+        toast('Request ' + requestId + ' saved as draft.');
+      }
+      navigate('myRequests');
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  });
+}
+
+/* =========================================================
+   REQUEST LIST
+========================================================= */
+async function renderRequestList(filters) {
+  const c = document.getElementById('viewContainer');
+  let rows = [];
+  try {
+    rows = (await api('listRequests', filters)).data;
+  } catch (e) { toast(e.message, 'error'); }
+
+  const multiTeam = STATE.user.teamAccess && STATE.user.teamAccess.length > 1;
+  const teams = multiTeam ? [...new Set(STATE.user.teamAccess)] : [];
+
+  c.innerHTML = `
+    <div class="card overflow-hidden">
+      <div class="p-5 flex items-center justify-between border-b border-gray-100">
+        <div class="flex items-center gap-2">
+          <input id="listSearchBox" class="field !w-72" placeholder="Filter by request ID, employee, subject..." value="${filters.search || ''}">
+          <button class="btn btn-outline" onclick="applyListFilter()">Filter</button>
+          ${multiTeam ? `
+            <select id="listTeamFilter" class="field !w-56" onchange="applyListTeamFilter()">
+              <option value="">All Teams</option>
+              ${teams.map(t => `<option value="${t}">${t}</option>`).join('')}
+            </select>` : ''}
+        </div>
+        <button class="btn btn-outline" onclick="exportListExcel(this)">Export Excel</button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="data-table" id="listTable">
+          <thead><tr>
+            <th>Request ID</th><th>Date</th><th>Employee</th><th>Team</th><th>Subject</th><th>Claim Type</th><th>Amount</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody>
+            ${rows.length ? rows.map(rowHtml).join('') : `<tr><td colspan="9" class="text-center text-gray-400 py-10">No requests found.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  STATE._listFilters = filters;
+  STATE._listRows = rows;
+
+  function rowHtml(r) {
+    return `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})">
+      <td class="font-bold text-brand-700">${r.RequestID}</td>
+      <td>${fmtDate(r.EntryDate)}</td>
+      <td>${r.PartyType === 'Direct' ? (r.DirectName || '—') : r.EmployeeName}<br><span class="text-xs text-gray-400">${r.PartyType === 'Direct' ? (r.DirectType || 'Direct') : r.EmployeeCode}</span></td>
+      <td>${r.Team || '—'}</td>
+      <td class="max-w-[180px] truncate">${r.Subject}</td>
+      <td>${r.ClaimType}</td>
+      <td class="font-bold">${fmtMoney(r.ClaimAmount)}</td>
+      <td>${statusPill(r.Status)}</td>
+      <td><svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></td>
+    </tr>`;
+  }
+}
+
+function applyListFilter() {
+  const search = document.getElementById('listSearchBox').value.trim();
+  renderRequestList({ ...(STATE._listFilters || {}), search });
+}
+
+function applyListTeamFilter() {
+  const team = document.getElementById('listTeamFilter').value;
+  const rows = (STATE._listRows || []).filter(r => !team || r.Team === team);
+  const rowHtml = r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})">
+      <td class="font-bold text-brand-700">${r.RequestID}</td>
+      <td>${fmtDate(r.EntryDate)}</td>
+      <td>${r.PartyType === 'Direct' ? (r.DirectName || '—') : r.EmployeeName}<br><span class="text-xs text-gray-400">${r.PartyType === 'Direct' ? (r.DirectType || 'Direct') : r.EmployeeCode}</span></td>
+      <td>${r.Team || '—'}</td>
+      <td class="max-w-[180px] truncate">${r.Subject}</td>
+      <td>${r.ClaimType}</td>
+      <td class="font-bold">${fmtMoney(r.ClaimAmount)}</td>
+      <td>${statusPill(r.Status)}</td>
+      <td><svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></td>
+    </tr>`;
+  document.querySelector('#listTable tbody').innerHTML = rows.length ? rows.map(rowHtml).join('') : `<tr><td colspan="9" class="text-center text-gray-400 py-10">No requests found.</td></tr>`;
+}
+
+/* =========================================================
+   PENDING TABS  (Audit Pending / Approval Pending / Payment Pending)
+   Compact newest-first view: Date | Claim Type | Claimant | Request
+   For | Amount | Status. Click a row to open its full report.
+   Includes a team filter for users with access to multiple teams.
+========================================================= */
+function claimantLabel(r) {
+  return r.PartyType === 'Direct' ? (r.DirectName || '—') : (r.EmployeeName || '—');
+}
+function requestForLabel(r) {
+  if (r.RequestForType) {
+    return r.RequestForType === 'Staff'
+      ? (r.RequestForName || '—')
+      : (r.RequestForType + (r.RequestForDetails ? ' — ' + r.RequestForDetails : ''));
+  }
+  return r.RequestFor || '—';
+}
+
+async function renderPendingTab(statuses) {
+  const c = document.getElementById('viewContainer');
+  const filters = { statusIn: statuses };
+  const hasTeamAccess = STATE.user.teamAccess && STATE.user.teamAccess.length > 0;
+  if (hasTeamAccess) filters.teamAccess = STATE.user.teamAccess;
+
+  let rows = [];
+  try { rows = (await api('listRequests', filters)).data; } catch (e) { toast(e.message, 'error'); }
+
+  // Newest to oldest by entry date
+  rows = rows.slice().sort((a, b) => new Date(b.EntryDate) - new Date(a.EntryDate));
+
+  STATE._pendingTabRows = rows;
+
+  const multiTeam = STATE.user.teamAccess && STATE.user.teamAccess.length > 1;
+  const teams = multiTeam ? [...new Set(STATE.user.teamAccess)] : [];
+
+  c.innerHTML = `
+    <div class="card overflow-hidden">
+      <div class="p-5 flex items-center justify-between border-b border-gray-100">
+        <div class="flex items-center gap-2">
+          ${multiTeam ? `
+            <select id="pendingTeamFilter" class="field !w-56" onchange="applyPendingTeamFilter()">
+              <option value="">All Teams</option>
+              ${teams.map(t => `<option value="${t}">${t}</option>`).join('')}
+            </select>` : ''}
+        </div>
+        <span class="text-xs text-gray-400">${rows.length} request${rows.length === 1 ? '' : 's'}</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="data-table" id="pendingTabTable">
+          <thead><tr>
+            <th>Date</th><th>Claim Type</th><th>Claimant</th><th>Request For</th><th>Amount</th><th>Status</th>
+          </tr></thead>
+          <tbody>${pendingTabRowsHtml(rows)}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function pendingTabRowsHtml(rows) {
+  if (!rows.length) return `<tr><td colspan="6" class="text-center text-gray-400 py-10">No requests found.</td></tr>`;
+  return rows.map(r => `
+    <tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})">
+      <td>${fmtDate(r.EntryDate)}</td>
+      <td>${r.ClaimType}</td>
+      <td>${claimantLabel(r)}</td>
+      <td>${requestForLabel(r)}</td>
+      <td class="font-bold">${fmtMoney(r.ClaimAmount)}</td>
+      <td>${statusPill(r.Status)}</td>
+    </tr>`).join('');
+}
+
+function applyPendingTeamFilter() {
+  const team = document.getElementById('pendingTeamFilter').value;
+  const rows = STATE._pendingTabRows || [];
+  const filtered = team ? rows.filter(r => r.Team === team) : rows;
+  document.querySelector('#pendingTabTable tbody').innerHTML = pendingTabRowsHtml(filtered);
+}
+
+function exportListExcel() {
+  const rows = STATE._listRows || [];
+  if (!rows.length) { toast('Nothing to export.', 'error'); return; }
+  const data = rows.map(r => ({
+    'Request ID': r.RequestID, 'Entry Date': fmtDate(r.EntryDate), 'Entry Person': r.EntryPersonName || r.CreatedBy,
+    'Party Type': r.PartyType || 'Staff',
+    'Employee': r.PartyType === 'Direct' ? (r.DirectName || '') : r.EmployeeName,
+    'Code': r.PartyType === 'Direct' ? (r.DirectType || '') : r.EmployeeCode,
+    'Team': r.Team || '',
+    'Mail Approver': r.MailApproverName || '', 'Mail Approval Date': r.MailApprovalDate ? fmtDate(r.MailApprovalDate) : '',
+    'Request For': r.RequestForType || '', 'Request For Name': r.RequestForType === 'Staff' ? (r.RequestForName || '') : (r.RequestForDetails || ''),
+    'Subject': r.Subject, 'Claim Type': r.ClaimType, 'Amount': r.ClaimAmount, 'Status': r.Status
+  }));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Requests');
+  XLSX.writeFile(wb, 'Reimbursement_Requests.xlsx');
+}
+
+/* =========================================================
+   REQUEST DETAIL
+========================================================= */
+function backTargetForRole(role) {
+  if (role === 'Entry') return 'myRequests';
+  if (role === 'Audit') return 'pendingAudit';
+  if (role === 'Approver') return 'pendingApproval';
+  if (role === 'Payments') return 'pendingPayment';
+  return 'allRequests';
+}
+
+async function renderRequestDetail(requestId) {
+  const c = document.getElementById('viewContainer');
+  let d;
+  try {
+    const detailPayload = STATE.user.role === 'Viewer' ? { requestId, teamAccess: STATE.user.teamAccess } : { requestId };
+    d = (await api('getRequestDetail', detailPayload)).data;
+  } catch (e) { c.innerHTML = `<p class="text-red-500">${e.message}</p>`; return; }
+  STATE.currentDetailId = requestId;
+  STATE.requestCache[requestId] = d;
+  const req = d.request;
+
+  c.innerHTML = `
+  <div class="flex items-center justify-between mb-5">
+    <button class="btn btn-outline" onclick="navigate('${STATE.lastListView || backTargetForRole(STATE.user.role)}')">← Back to list</button>
+    <div class="flex gap-2">
+      <button class="btn btn-outline" onclick="openSummaryModal('${requestId}')">View Summary Document</button>
+    </div>
+  </div>
+
+  <div class="card p-7 mb-5">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <p class="text-xs text-gray-400 font-semibold">REQUEST ID</p>
+        <h2 class="text-2xl font-display font-extrabold text-gray-800">${req.RequestID}</h2>
+      </div>
+      <div class="text-right">
+        ${statusPill(req.Status)}
+        <p class="text-xs text-gray-400 mt-2">Last updated ${fmtDateTime(req.LastUpdated)}</p>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+      ${req.PartyType === 'Direct'
+        ? infoItem('Claimant', (req.DirectName || '—') + ' (' + (req.DirectType || 'Direct') + ')')
+        : infoItem('Employee', (req.EmployeeName || '—') + (req.EmployeeCode ? ' (' + req.EmployeeCode + ')' : ''))}
+      ${infoItem('Designation', req.Designation || '—')}
+      ${infoItem('Department', req.Department || '—')}
+      ${infoItem('Team', req.Team || '—')}
+      ${infoItem('Location', req.Location || '—')}
+      ${infoItem('Claim Type', req.ClaimType)}
+      ${infoItem('Request For', req.RequestForType ? (req.RequestForType === 'Staff' ? (req.RequestForName || '—') + ' (Staff)' : req.RequestForType + (req.RequestForDetails ? ' — ' + req.RequestForDetails : '')) : (req.RequestFor || '—'))}
+      ${infoItem('Claim Amount', fmtMoney(req.ClaimAmount))}
+      ${infoItem('Entry Date', fmtDate(req.EntryDate))}
+      ${infoItem('Entry Person', req.EntryPersonName || req.CreatedBy || '—')}
+      ${infoItem('Mail Approver', req.MailApproverName ? req.MailApproverName + (req.MailApprovalDate ? ' · ' + fmtDate(req.MailApprovalDate) : '') : '—')}
+    </div>
+    ${req.PartyType === 'Direct' && req.DirectDetails ? `<div class="mt-4 pt-4 border-t border-gray-100"><p class="text-xs text-gray-400 font-semibold mb-1">DIRECT PARTY DETAILS</p><p class="text-sm">${req.DirectDetails}</p></div>` : ''}
+    ${req.Subject ? `<div class="mt-4 pt-4 border-t border-gray-100"><p class="text-xs text-gray-400 font-semibold mb-1">SUBJECT</p><p class="text-sm">${req.Subject}</p></div>` : ''}
+    ${req.Remarks ? `<div class="mt-3"><p class="text-xs text-gray-400 font-semibold mb-1">REMARKS</p><p class="text-sm">${req.Remarks}</p></div>` : ''}
+  </div>
+
+  <div class="flex gap-2 mb-4" id="detailTabs">
+    ${tabBtn('attachments','Attachments',true)}
+    ${tabBtn('audit','Audit')}
+    ${tabBtn('approval','Approval')}
+    ${tabBtn('payment','Payment')}
+    ${tabBtn('queries','Queries')}
+    ${tabBtn('activity','Activity Log')}
+    ${tabBtn('actions','Actions')}
+  </div>
+  <div id="detailTabContent" class="card p-7"></div>
+  `;
+  renderDetailTab('attachments', d);
+
+  document.querySelectorAll('#detailTabs .tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#detailTabs .tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderDetailTab(btn.dataset.tab, d);
+    });
+  });
+}
+
+function infoItem(label, value) {
+  return `<div><p class="text-[11px] text-gray-400 font-bold uppercase tracking-wide">${label}</p><p class="text-sm font-semibold text-gray-700 mt-0.5">${value}</p></div>`;
+}
+function tabBtn(id, label, active) {
+  return `<div class="tab-btn ${active ? 'active' : ''}" data-tab="${id}">${label}</div>`;
+}
+
+function renderDetailTab(tab, d) {
+  const el = document.getElementById('detailTabContent');
+  const req = d.request;
+  if (tab === 'attachments') {
+    const cats = ['Attachment','SponsorSheet','MailPDF','AuditDoc','PaymentDoc'];
+    el.innerHTML = cats.map(cat => {
+      const files = d.attachments.filter(a => a.Category === cat);
+      if (!files.length) return '';
+      return `<div class="mb-4">
+        <p class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">${cat.replace(/([A-Z])/g,' $1').trim()}</p>
+        <div class="space-y-2">${files.map(f => `
+          <a href="${f.FileURL}" target="_blank" class="flex items-center gap-3 bg-gray-50 hover:bg-brand-50 rounded-xl px-4 py-2.5 transition">
+            <svg class="w-4 h-4 text-brand-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            <span class="text-sm font-medium truncate">${f.FileName}</span>
+            <span class="text-xs text-gray-400 ml-auto">${fmtDateTime(f.UploadedAt)}</span>
+          </a>`).join('')}</div>
+      </div>`;
+    }).join('') || '<p class="text-gray-400 text-sm">No files uploaded yet.</p>';
+  }
+  else if (tab === 'audit') {
+    el.innerHTML = d.audit.length ? `<table class="data-table"><thead><tr><th>Date</th><th>Audited By</th><th>Audited Amount</th><th>Action</th><th>Remarks</th></tr></thead><tbody>
+      ${d.audit.map(a => `<tr><td>${fmtDate(a.AuditDate)}</td><td>${a.AuditedUserName || a.AuditedUser}</td><td>${fmtMoney(a.AuditedAmount)}</td><td>${statusPill(a.AuditAction)}</td><td class="whitespace-normal max-w-xs">${a.AuditRemarks||''}</td></tr>`).join('')}
+    </tbody></table>` : '<p class="text-gray-400 text-sm">No audit entries yet.</p>';
+  }
+  else if (tab === 'approval') {
+    el.innerHTML = (d.approvals && d.approvals.length) ? `<table class="data-table"><thead><tr><th>Date</th><th>Approved By</th><th>Approved Amount</th><th>Action</th><th>Remarks</th></tr></thead><tbody>
+      ${d.approvals.map(a => `<tr><td>${fmtDate(a.ApprovalDate)}</td><td>${a.ApprovedUserName || a.ApprovedUser}</td><td>${fmtMoney(a.ApprovedAmount)}</td><td>${statusPill(a.ApprovalAction)}</td><td class="whitespace-normal max-w-xs">${a.ApprovalRemarks||''}</td></tr>`).join('')}
+    </tbody></table>` : '<p class="text-gray-400 text-sm">No approver entries yet.</p>';
+  }
+  else if (tab === 'payment') {
+    el.innerHTML = d.payments.length ? `<table class="data-table"><thead><tr><th>Date</th><th>Mode</th><th>UTR / Txn No</th><th>Paid Amount</th><th>Paid By</th><th>Remarks</th></tr></thead><tbody>
+      ${d.payments.map(p => `<tr><td>${fmtDate(p.PaymentDate)}</td><td>${p.PaymentMode}</td><td>${p.UTRNo}</td><td class="font-bold">${fmtMoney(p.PaidAmount)}</td><td>${p.PaidByName || p.PaidBy}</td><td class="whitespace-normal max-w-xs">${p.PaymentRemarks||''}</td></tr>`).join('')}
+    </tbody></table>` : '<p class="text-gray-400 text-sm">No payment recorded yet.</p>';
+  }
+  else if (tab === 'queries') {
+    el.innerHTML = d.queries.length ? d.queries.map(q => `
+      <div class="border border-gray-100 rounded-xl p-4 mb-3">
+        <div class="flex justify-between items-center mb-2">
+          <p class="text-xs font-bold text-gray-500">${q.RaisedBy} · ${fmtDateTime(q.RaisedAt)}</p>
+          <span class="status-pill ${q.Status==='Open'?'bg-red-100 text-red-700':'bg-emerald-100 text-emerald-700'}">${q.Status}</span>
+        </div>
+        <p class="text-sm mb-2">${q.QueryText}</p>
+        ${q.ResponseText ? `<div class="bg-gray-50 rounded-lg p-3 mt-2"><p class="text-xs font-bold text-gray-500 mb-1">Response by ${q.RespondedBy} · ${fmtDateTime(q.RespondedAt)}</p><p class="text-sm">${q.ResponseText}</p></div>` : ''}
+        ${(q.Status === 'Open' && STATE.user.role === 'Entry') ? `
+          <div class="mt-3 flex gap-2">
+            <input class="field" id="queryResp_${q.QueryID}" placeholder="Type your response...">
+            <button class="btn btn-primary shrink-0" onclick="submitQueryResponse(this,'${q.QueryID}')">Respond</button>
+          </div>` : ''}
+      </div>`).join('') : '<p class="text-gray-400 text-sm">No queries raised.</p>';
+  }
+  else if (tab === 'activity') {
+    el.innerHTML = `<div class="relative pl-5">
+      ${d.activity.map((a,i) => `
+        <div class="relative pb-5 ${i!==d.activity.length-1?'border-l-2 border-brand-100 ml-[3px]':''} pl-5">
+          <div class="absolute -left-[7px] top-0 w-3 h-3 rounded-full grad-purple"></div>
+          <p class="text-sm font-bold text-gray-700">${a.Action}</p>
+          <p class="text-xs text-gray-400">${a.PerformedBy} · ${fmtDateTime(a.Timestamp)}</p>
+          ${a.Details ? `<p class="text-xs text-gray-500 mt-1">${a.Details}</p>` : ''}
+        </div>`).join('')}
+    </div>`;
+  }
+  else if (tab === 'actions') {
+    el.innerHTML = renderActionsPanel(req, d);
+  }
+}
+
+async function submitQueryResponse(btnEl, queryId) {
+  const text = document.getElementById('queryResp_' + queryId).value.trim();
+  if (!text) return;
+  await withButtonLoading(btnEl, async () => {
+    try {
+      await api('respondQuery', { queryId, responseText: text, respondedBy: STATE.user.username });
+      toast('Response submitted.');
+      renderRequestDetail(STATE.currentDetailId);
+    } catch (e) { toast(e.message, 'error'); }
+  });
+}
+
+// Returns the entry in arr with the latest value of dateField — used to
+// carry the Commercial Audit amount into the Approver's default, and the
+// Approver's amount into Payments' default, instead of always falling back
+// to the original claim amount.
+function latestOf(arr, dateField) {
+  if (!arr || !arr.length) return null;
+  return arr.reduce((latest, r) => (!latest || new Date(r[dateField]) >= new Date(latest[dateField])) ? r : latest, null);
+}
+
+function renderActionsPanel(req, d) {
+  d = d || {};
+  const latestAudit = latestOf(d.audit, 'AuditDate');
+  const latestApproval = latestOf(d.approvals, 'ApprovalDate');
+  const role = STATE.user.role;
+  if (role === 'Entry') {
+    if (req.Status === 'Draft' || req.Status === 'Returned') {
+      return `<p class="text-sm text-gray-500 mb-4">This request can be routed to Commercial for audit.</p>
+        <button class="btn btn-primary" onclick="doSendToCommercial(this,'${req.RequestID}')">Send to Commercial</button>`;
+    }
+    return `<p class="text-sm text-gray-400">No entry actions available at the current status (${req.Status}). Check the Queries tab if a response is required.</p>`;
+  }
+  if (role === 'Audit') {
+    if (['Pending Commercial Audit','Under Audit','Waiting for Accounts Reply'].indexOf(req.Status) > -1) {
+      return `
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div class="col-span-2"><label class="label">Audited By (Name)</label><input type="text" id="a_userName" class="field" value="${STATE.user.fullName}" placeholder="Enter the name of the person auditing this claim"></div>
+        <div><label class="label">Audited Amount (₹)</label><input type="number" step="0.01" id="a_amount" class="field" value="${req.ClaimAmount}"></div>
+        <div><label class="label">Audit Date</label><input type="date" id="a_date" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="col-span-2"><label class="label">Audit Remarks / Query Text</label><textarea id="a_remarks" class="field" rows="3"></textarea></div>
+      </div>
+      <div class="flex gap-3 mt-5">
+        <button class="btn btn-green" onclick="doAudit(this,'${req.RequestID}','Approve')">Approve</button>
+        <button class="btn btn-amber" onclick="doAudit(this,'${req.RequestID}','Query')">Raise Query</button>
+        <button class="btn btn-red" onclick="doAudit(this,'${req.RequestID}','Return')">Return</button>
+      </div>`;
+    }
+    if (req.Status === 'Audit Completed') {
+      return `<p class="text-sm text-gray-500 mb-4">Audit is complete. Route this approved claim to the Payments team.</p>
+        <button class="btn btn-primary" onclick="doSendToPayment(this,'${req.RequestID}')">Send to Payment</button>`;
+    }
+    if (req.Status === 'Pending Approval') {
+      return `<p class="text-sm text-gray-400">This request has been approved and sent to the Approver. Awaiting their sign-off.</p>`;
+    }
+    return `<p class="text-sm text-gray-400">No audit actions available at the current status (${req.Status}).</p>`;
+  }
+  if (role === 'Approver') {
+    if (req.Status === 'Pending Approval') {
+      const defaultApproved = latestAudit ? latestAudit.AuditedAmount : req.ClaimAmount;
+      const auditNote = latestAudit
+        ? `<p class="text-xs text-gray-500 -mt-3 mb-1">Pre-filled from Commercial Audit: ${fmtMoney(latestAudit.AuditedAmount)} by ${latestAudit.AuditedUserName || latestAudit.AuditedUser}. Adjust if needed.</p>`
+        : '';
+      return `
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div class="col-span-2"><label class="label">Approved By (Name)</label><input type="text" id="ap_userName" class="field" value="${STATE.user.fullName}" placeholder="Enter the name of the approver"></div>
+        <div class="col-span-2">${auditNote}<label class="label">Approved Amount (₹)</label><input type="number" step="0.01" id="ap_amount" class="field" value="${defaultApproved}"></div>
+        <div><label class="label">Approval Date</label><input type="date" id="ap_date" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="col-span-2"><label class="label">Approval Remarks / Query Text</label><textarea id="ap_remarks" class="field" rows="3"></textarea></div>
+      </div>
+      <div class="flex gap-3 mt-5">
+        <button class="btn btn-green" onclick="doApprover(this,'${req.RequestID}','Approve')">Approve & Send to Payment</button>
+        <button class="btn btn-amber" onclick="doApprover(this,'${req.RequestID}','Query')">Raise Query</button>
+        <button class="btn btn-red" onclick="doApprover(this,'${req.RequestID}','Return')">Return</button>
+      </div>`;
+    }
+    return `<p class="text-sm text-gray-400">No approver actions available at the current status (${req.Status}).</p>`;
+  }
+  if (role === 'Viewer') {
+    return `<p class="text-sm text-gray-400">You have view-only access to this request. Actions are not available for your account.</p>`;
+  }
+  if (role === 'Payments') {
+    if (['Audit Completed','Pending Payment'].indexOf(req.Status) > -1) {
+      const defaultPaid = latestApproval ? latestApproval.ApprovedAmount : (latestAudit ? latestAudit.AuditedAmount : req.ClaimAmount);
+      const approvalNote = latestApproval
+        ? `<p class="text-xs text-gray-500 -mt-3 mb-1">Pre-filled from Approver: ${fmtMoney(latestApproval.ApprovedAmount)} by ${latestApproval.ApprovedUserName || latestApproval.ApprovedUser}. Adjust if needed.</p>`
+        : (latestAudit ? `<p class="text-xs text-gray-500 -mt-3 mb-1">Pre-filled from Commercial Audit: ${fmtMoney(latestAudit.AuditedAmount)}. Adjust if needed.</p>` : '');
+      return `
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div><label class="label">Payment Date</label><input type="date" id="p_date" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div><label class="label">Payment Mode</label><select id="p_mode" class="field"><option>NEFT</option><option>RTGS</option><option>UPI</option><option>Cheque</option><option>Cash</option></select></div>
+        <div><label class="label">UTR / Transaction No</label><input id="p_utr" class="field"></div>
+        <div class="col-span-2">${approvalNote}<label class="label">Paid Amount (₹)</label><input type="number" step="0.01" id="p_amount" class="field" value="${defaultPaid}"></div>
+        <div class="col-span-2"><label class="label">Payment Remarks</label><textarea id="p_remarks" class="field" rows="2"></textarea></div>
+      </div>
+      <div class="flex gap-3 mt-5">
+        <button class="btn btn-primary" onclick="doProcessPayment(this,'${req.RequestID}')">Complete Payment</button>
+      </div>`;
+    }
+    if (req.Status === 'Payment Released') {
+      return `<p class="text-sm text-gray-500 mb-4">Payment has been released. Send the final acknowledgement to Commercial &amp; Accounts Entry.</p>
+        <button class="btn btn-primary" onclick="doCompletePayment(this,'${req.RequestID}')">Send Acknowledgement & Close</button>`;
+    }
+    return `<p class="text-sm text-gray-400">No payment actions available at the current status (${req.Status}).</p>`;
+  }
+  return '';
+}
+
+async function doSendToCommercial(btnEl, requestId) {
+  await withButtonLoading(btnEl, async () => {
+    try { await api('sendToCommercial', { requestId, userBy: STATE.user.username }); toast('Sent to Commercial.'); renderRequestDetail(requestId); }
+    catch (e) { toast(e.message, 'error'); }
+  });
+}
+async function doAudit(btnEl, requestId, action) {
+  const auditedUserName = document.getElementById('a_userName').value.trim();
+  const auditedAmount = parseFloat(document.getElementById('a_amount').value) || 0;
+  const auditDate = document.getElementById('a_date').value;
+  const auditRemarks = document.getElementById('a_remarks').value;
+  if (!auditedUserName) { toast('Please enter the name of the person auditing this claim.', 'error'); return; }
+  if (action === 'Query' && !auditRemarks) { toast('Please enter the query text in Remarks.', 'error'); return; }
+  await withButtonLoading(btnEl, async () => {
+    try {
+      await api('auditRequest', { requestId, auditedUser: STATE.user.username, auditedUserName, auditedAmount, auditDate, auditRemarks, action, queryText: auditRemarks });
+      toast('Audit action recorded: ' + action);
+      renderRequestDetail(requestId);
+    } catch (e) { toast(e.message, 'error'); }
+  });
+}
+async function doApprover(btnEl, requestId, action) {
+  const approvedUserName = document.getElementById('ap_userName').value.trim();
+  const approvedAmount = parseFloat(document.getElementById('ap_amount').value) || 0;
+  const approvalDate = document.getElementById('ap_date').value;
+  const approvalRemarks = document.getElementById('ap_remarks').value;
+  if (!approvedUserName) { toast('Please enter the name of the approver.', 'error'); return; }
+  if (action === 'Query' && !approvalRemarks) { toast('Please enter the query text in Remarks.', 'error'); return; }
+  await withButtonLoading(btnEl, async () => {
+    try {
+      await api('approverAction', { requestId, approvedUser: STATE.user.username, approvedUserName, approvedAmount, approvalDate, approvalRemarks, action, queryText: approvalRemarks });
+      toast('Approval action recorded: ' + action);
+      renderRequestDetail(requestId);
+    } catch (e) { toast(e.message, 'error'); }
+  });
+}
+async function doSendToPayment(btnEl, requestId) {
+  await withButtonLoading(btnEl, async () => {
+    try { await api('sendToPayment', { requestId, userBy: STATE.user.username }); toast('Sent to Payment.'); renderRequestDetail(requestId); }
+    catch (e) { toast(e.message, 'error'); }
+  });
+}
+async function doProcessPayment(btnEl, requestId) {
+  const payload = {
+    requestId,
+    paymentDate: document.getElementById('p_date').value,
+    paymentMode: document.getElementById('p_mode').value,
+    utrNo: document.getElementById('p_utr').value,
+    paidAmount: parseFloat(document.getElementById('p_amount').value) || 0,
+    paymentRemarks: document.getElementById('p_remarks').value,
+    paidBy: STATE.user.username,
+    paidByName: STATE.user.fullName
+  };
+  await withButtonLoading(btnEl, async () => {
+    try { await api('processPayment', payload); toast('Payment processed.'); renderRequestDetail(requestId); }
+    catch (e) { toast(e.message, 'error'); }
+  });
+}
+async function doCompletePayment(btnEl, requestId) {
+  await withButtonLoading(btnEl, async () => {
+    try { await api('completePayment', { requestId, userBy: STATE.user.username }); toast('Acknowledgement sent. Request completed.'); renderRequestDetail(requestId); }
+    catch (e) { toast(e.message, 'error'); }
+  });
+}
+
+/* =========================================================
+   REPORTS
+========================================================= */
+const REPORT_TYPES = [
+  {id:'employee-wise', label:'Employee-wise'},
+  {id:'party-wise', label:'Party / Department-wise'},
+  {id:'team-wise', label:'Team-wise'},
+  {id:'claim-type-wise', label:'Claim Type-wise'},
+  {id:'pending-audit', label:'Pending Audit'},
+  {id:'pending-payment', label:'Pending Payment'},
+  {id:'completed', label:'Completed'},
+  {id:'audit-register', label:'Audit Register'},
+  {id:'payment-register', label:'Payment Register'},
+  {id:'monthly-summary', label:'Monthly Summary'}
+];
+
+function renderReports() {
+  const c = document.getElementById('viewContainer');
+  c.innerHTML = `
+    <div class="flex flex-wrap gap-2 mb-5">
+      ${REPORT_TYPES.map(r => `<button class="tab-btn ${r.id==='employee-wise'?'active':''}" data-report="${r.id}" onclick="loadReport('${r.id}')">${r.label}</button>`).join('')}
+    </div>
+    <div class="card p-6">
+      <div class="flex justify-between items-center mb-4">
+        <div>
+          <h3 class="font-display font-bold text-gray-800" id="reportTitle">Employee-wise</h3>
+          <p class="text-xs text-gray-400 mt-0.5">Click a row to expand its request-level detail. Export gives a full detailed register, not just totals.</p>
+        </div>
+        <button class="btn btn-outline" onclick="exportReportExcel(this)">Export Excel</button>
+      </div>
+      <div id="reportContent"><p class="text-gray-400 text-sm">Loading...</p></div>
+    </div>`;
+  loadReport('employee-wise');
+}
+
+// Renders the small detail sub-table used when a group/month summary row is
+// expanded, showing every underlying request that rolled into that total.
+function detailSubTable(items) {
+  if (!items || !items.length) return '<p class="text-xs text-gray-400 py-2">No line items.</p>';
+  return `<table class="data-table text-xs"><thead><tr>
+      <th>Request ID</th><th>Entry Date</th><th>Entry Person</th><th>Mail Approver</th><th>Claimant</th><th>Team</th><th>Request For</th><th>Subject</th><th>Claim Type</th><th>Amount</th><th>Status</th>
+    </tr></thead><tbody>
+    ${items.map(it => `<tr class="cursor-pointer" onclick="event.stopPropagation();navigate('requestDetail',{requestId:'${it.RequestID}'})">
+      <td class="font-bold text-brand-700">${it.RequestID}</td><td>${it.EntryDate}</td><td>${it.EntryPerson||'—'}</td>
+      <td>${it.MailApprover ? it.MailApprover + (it.MailApprovalDate && it.MailApprovalDate !== '—' ? ' · ' + it.MailApprovalDate : '') : '—'}</td>
+      <td>${it.Claimant}</td><td>${it.Team||'—'}</td><td>${it.RequestFor||'—'}</td>
+      <td class="max-w-[160px] truncate">${it.Subject}</td><td>${it.ClaimType}</td><td class="font-bold">${fmtMoney(it.ClaimAmount)}</td><td>${statusPill(it.Status)}</td>
+    </tr>`).join('')}
+    </tbody></table>`;
+}
+
+async function loadReport(type) {
+  document.querySelectorAll('[data-report]').forEach(b => b.classList.toggle('active', b.dataset.report === type));
+  document.getElementById('reportTitle').textContent = REPORT_TYPES.find(r => r.id===type).label;
+  const el = document.getElementById('reportContent');
+  el.innerHTML = '<p class="text-gray-400 text-sm">Loading...</p>';
+  let data = [];
+  try {
+    const reportPayload = STATE.user.role === 'Viewer' ? { type, teamAccess: STATE.user.teamAccess } : { type };
+    data = (await api('getReports', reportPayload)).data;
+  } catch (e) { toast(e.message, 'error'); }
+  STATE._reportData = data; STATE._reportType = type;
+
+  if (!data.length) { el.innerHTML = '<p class="text-gray-400 text-sm py-6 text-center">No data available.</p>'; return; }
+
+  if (['employee-wise','party-wise','team-wise','claim-type-wise'].indexOf(type) > -1) {
+    el.innerHTML = `<table class="data-table"><thead><tr><th></th><th>Name</th><th>Request Count</th><th>Total Amount</th></tr></thead><tbody>
+      ${data.map((r,i) => `
+        <tr class="cursor-pointer" onclick="toggleReportGroup(${i})">
+          <td class="w-5 text-gray-300" id="rg_caret_${i}">▸</td><td class="font-bold">${r.name}</td><td>${r.count}</td><td class="font-bold">${fmtMoney(r.total)}</td>
+        </tr>
+        <tr id="rg_row_${i}" class="hidden"><td colspan="4" class="bg-gray-50/70">${detailSubTable(r.items)}</td></tr>`).join('')}
+    </tbody></table>`;
+  } else if (['pending-audit','pending-payment','completed'].indexOf(type) > -1) {
+    el.innerHTML = `<table class="data-table"><thead><tr><th>Request ID</th><th>Entry Date</th><th>Entry Person</th><th>Employee</th><th>Team</th><th>Claim Type</th><th>Amount</th><th>Status</th></tr></thead><tbody>
+      ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${fmtDate(r.EntryDate)}</td><td>${r.EntryPersonName||r.CreatedBy||'—'}</td><td>${r.PartyType==='Direct'?(r.DirectName||'—'):r.EmployeeName}</td><td>${r.Team||'—'}</td><td>${r.ClaimType}</td><td>${fmtMoney(r.ClaimAmount)}</td><td>${statusPill(r.Status)}</td></tr>`).join('')}
+    </tbody></table>`;
+  } else if (type === 'audit-register') {
+    el.innerHTML = `<table class="data-table"><thead><tr><th>Request ID</th><th>Date</th><th>Claimant</th><th>Team</th><th>Audited By</th><th>Amount</th><th>Action</th></tr></thead><tbody>
+      ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${r.AuditDate}</td><td>${r.Claimant||'—'}</td><td>${r.Team||'—'}</td><td>${r.AuditedUserName||r.AuditedUser}</td><td>${fmtMoney(r.AuditedAmount)}</td><td>${statusPill(r.AuditAction)}</td></tr>`).join('')}
+    </tbody></table>`;
+  } else if (type === 'payment-register') {
+    el.innerHTML = `<table class="data-table"><thead><tr><th>Request ID</th><th>Date</th><th>Claimant</th><th>Team</th><th>Mode</th><th>UTR</th><th>Paid Amount</th></tr></thead><tbody>
+      ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${r.PaymentDate}</td><td>${r.Claimant||'—'}</td><td>${r.Team||'—'}</td><td>${r.PaymentMode}</td><td>${r.UTRNo}</td><td class="font-bold">${fmtMoney(r.PaidAmount)}</td></tr>`).join('')}
+    </tbody></table>`;
+  } else if (type === 'monthly-summary') {
+    el.innerHTML = `<table class="data-table"><thead><tr><th></th><th>Month</th><th>Request Count</th><th>Total Amount</th></tr></thead><tbody>
+      ${data.map((r,i) => `
+        <tr class="cursor-pointer" onclick="toggleReportGroup(${i})">
+          <td class="w-5 text-gray-300" id="rg_caret_${i}">▸</td><td class="font-bold">${r.month}</td><td>${r.count}</td><td class="font-bold">${fmtMoney(r.total)}</td>
+        </tr>
+        <tr id="rg_row_${i}" class="hidden"><td colspan="4" class="bg-gray-50/70">${detailSubTable(r.items)}</td></tr>`).join('')}
+    </tbody></table>`;
+  }
+}
+
+function toggleReportGroup(i) {
+  const row = document.getElementById('rg_row_' + i);
+  const caret = document.getElementById('rg_caret_' + i);
+  if (!row) return;
+  const hidden = row.classList.toggle('hidden');
+  caret.textContent = hidden ? '▸' : '▾';
+}
+
+// Builds a workbook that's a genuine detailed register: for group/month
+// reports it writes a "Summary" sheet (name/count/total) plus a "Detail"
+// sheet with every underlying request line item; for row-level report
+// types (pending lists, audit/payment registers) it exports the full set
+// of columns already returned by the backend, not a trimmed-down view.
+function exportReportExcel(btnEl) {
+  const data = STATE._reportData || [];
+  if (!data.length) { toast('Nothing to export.', 'error'); return; }
+  withButtonLoading(btnEl, async () => {
+    const wb = XLSX.utils.book_new();
+    const hasItems = data.some(r => Array.isArray(r.items));
+    if (hasItems) {
+      const summaryRows = data.map(r => ({ Name: r.name || r.month, 'Request Count': r.count, 'Total Amount': r.total }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Summary');
+      const detailRows = [];
+      data.forEach(group => (group.items || []).forEach(item => detailRows.push(Object.assign({ Group: group.name || group.month }, item))));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows), 'Detail');
+    } else {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), STATE._reportType.slice(0,31));
+    }
+    XLSX.writeFile(wb, 'Report_' + STATE._reportType + '.xlsx');
+    toast('Detailed report downloaded.');
+  });
+}
+
+/* =========================================================
+   REIMBURSEMENT SUMMARY DOCUMENT (View / Print / PDF)
+========================================================= */
+async function openSummaryModal(requestId) {
+  let d;
+  try { d = (await api('getSummary', { requestId })).data; }
+  catch (e) { toast(e.message, 'error'); return; }
+  const req = d.request;
+  const host = document.getElementById('modalHost');
+  host.innerHTML = `
+  <div class="modal-backdrop" onclick="if(event.target===this) closeModal()">
+    <div class="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+        <h3 class="font-display font-bold text-gray-800">Reimbursement Summary — ${req.RequestID}</h3>
+        <div class="flex gap-2">
+          <button class="btn btn-outline" onclick="window.print()">Print</button>
+          <button class="btn btn-primary" onclick="downloadSummaryPDF('${req.RequestID}')">Download PDF</button>
+          <button class="btn btn-outline" onclick="closeModal()">✕</button>
+        </div>
+      </div>
+      <div id="printArea" class="p-8">
+        ${buildSummaryHtml(d)}
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildSummaryHtml(d) {
+  const req = d.request;
+  return `
+  <div class="border-b-2 border-brand-600 pb-4 mb-5 flex justify-between items-start">
+    <div>
+      <h2 class="text-xl font-display font-extrabold text-brand-700">${d.companyName || 'Pristine Pearl Pharma Pvt Ltd'}</h2>
+      <p class="text-xs text-gray-400">Reimbursement Summary Document</p>
+    </div>
+    <img src="${d.qrUrl}" crossorigin="anonymous" class="w-20 h-20" alt="QR Code">
+  </div>
+  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+    ${infoItem('Request ID', req.RequestID)}
+    ${infoItem('Status', req.Status)}
+    ${req.PartyType === 'Direct'
+      ? infoItem('Claimant', (req.DirectName||'—') + ' (' + (req.DirectType||'Direct') + ')')
+      : infoItem('Employee', req.EmployeeName + ' (' + req.EmployeeCode + ')')}
+    ${infoItem('Designation', req.Designation||'—')}
+    ${infoItem('Department', req.Department||'—')}
+    ${infoItem('Team', req.Team||'—')}
+    ${infoItem('Location', req.Location||'—')}
+    ${infoItem('Claim Type', req.ClaimType)}
+    ${infoItem('Request For', req.RequestForType ? (req.RequestForType === 'Staff' ? (req.RequestForName||'—')+' (Staff)' : req.RequestForType + (req.RequestForDetails?(' — '+req.RequestForDetails):'')) : (req.RequestFor||'—'))}
+    ${infoItem('Claim Amount', fmtMoney(req.ClaimAmount))}
+    ${infoItem('Entry Date', fmtDate(req.EntryDate))}
+    ${infoItem('Entry Person', req.EntryPersonName || req.CreatedBy || '—')}
+    ${infoItem('Mail Approver', req.MailApproverName ? req.MailApproverName + (req.MailApprovalDate?(' · '+fmtDate(req.MailApprovalDate)):'') : '—')}
+    ${infoItem('Subject', req.Subject)}
+  </div>
+  <div class="mb-5">
+    <h4 class="font-bold text-sm text-gray-700 mb-2 border-b pb-1">Commercial Audit</h4>
+    ${d.audit.length ? d.audit.map(a => `<p class="text-sm mb-1">${fmtDate(a.AuditDate)} — ${a.AuditedUserName || a.AuditedUser} — ${fmtMoney(a.AuditedAmount)} — <b>${a.AuditAction}</b> ${a.AuditRemarks?('— '+a.AuditRemarks):''}</p>`).join('') : '<p class="text-sm text-gray-400">Not yet audited.</p>'}
+  </div>
+  <div class="mb-5">
+    <h4 class="font-bold text-sm text-gray-700 mb-2 border-b pb-1">Approver</h4>
+    ${(d.approvals && d.approvals.length) ? d.approvals.map(a => `<p class="text-sm mb-1">${fmtDate(a.ApprovalDate)} — ${a.ApprovedUserName || a.ApprovedUser} — ${fmtMoney(a.ApprovedAmount)} — <b>${a.ApprovalAction}</b> ${a.ApprovalRemarks?('— '+a.ApprovalRemarks):''}</p>`).join('') : '<p class="text-sm text-gray-400">Not yet reviewed by Approver.</p>'}
+  </div>
+  <div class="mb-5">
+    <h4 class="font-bold text-sm text-gray-700 mb-2 border-b pb-1">Payment Details</h4>
+    ${d.payments.length ? d.payments.map(p => `<p class="text-sm mb-1">${fmtDate(p.PaymentDate)} — ${p.PaymentMode} — UTR: ${p.UTRNo} — <b>${fmtMoney(p.PaidAmount)}</b> — ${p.PaidByName || p.PaidBy}</p>`).join('') : '<p class="text-sm text-gray-400">Payment pending.</p>'}
+  </div>
+  <div class="mb-5">
+    <h4 class="font-bold text-sm text-gray-700 mb-2 border-b pb-1">Attachment List</h4>
+    ${d.attachments.length ? `<ul class="list-disc pl-5 text-sm space-y-0.5">${d.attachments.map(a => `<li>${a.FileName} (${a.Category})</li>`).join('')}</ul>` : '<p class="text-sm text-gray-400">No attachments.</p>'}
+  </div>
+  <div>
+    <h4 class="font-bold text-sm text-gray-700 mb-2 border-b pb-1">Activity History</h4>
+    ${d.activity.map(a => `<p class="text-xs text-gray-600 mb-1">${fmtDateTime(a.Timestamp)} — <b>${a.Action}</b> by ${a.PerformedBy}</p>`).join('')}
+  </div>`;
+}
+
+function closeModal() { document.getElementById('modalHost').innerHTML = ''; }
+
+async function downloadSummaryPDF(requestId) {
+  const el = document.getElementById('printArea');
+  const canvas = await html2canvas(el, { scale: 2, useCORS: true, allowTaint: false });
+  const imgData = canvas.toDataURL('image/png');
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p', 'pt', 'a4');
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const imgHeight = (canvas.height * pageWidth) / canvas.width;
+  pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, imgHeight);
+  pdf.save('Reimbursement_' + requestId + '.pdf');
+}
+
+/* =========================================================
+   BOOTSTRAP
+========================================================= */
+(function bootstrap() {
+  const saved = sessionStorage.getItem('rms_user');
+  if (saved) {
+    STATE.user = JSON.parse(saved);
+    enterApp();
+  }
+})();
+</script>
+</body>
+</html>
