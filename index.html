@@ -1701,6 +1701,25 @@ function toggleReportGroup(i) {
   caret.textContent = hidden ? '▸' : '▾';
 }
 
+// Report rows come back from the backend with raw date values (Apps Script
+// serializes sheet Date cells to full ISO strings, e.g.
+// "2026-06-30T18:30:00.000Z"). The on-screen tables already run these
+// through fmtDate(), but the Excel export was writing them straight through
+// unformatted. This picks out every known date-ish field on a report row
+// and rewrites it as a plain dd-mmm-yyyy string before export.
+const REPORT_DATE_FIELDS = ['EntryDate','MailReceivedDate','MailApprovalDate','AuditDate','ApprovalDate','PaymentDate'];
+function exportDateStr_(v) {
+  if (!v) return '';
+  const dt = new Date(v);
+  if (isNaN(dt)) return v;
+  return dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+function formatRowDatesForExport(row) {
+  const out = Object.assign({}, row);
+  REPORT_DATE_FIELDS.forEach(f => { if (f in out) out[f] = exportDateStr_(out[f]); });
+  return out;
+}
+
 // Builds a workbook that's a genuine detailed register: for group/month
 // reports it writes a "Summary" sheet (name/count/total) plus a "Detail"
 // sheet with every underlying request line item; for row-level report
@@ -1716,10 +1735,10 @@ function exportReportExcel(btnEl) {
       const summaryRows = data.map(r => ({ Name: r.name || r.month, 'Request Count': r.count, 'Total Amount': r.total }));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Summary');
       const detailRows = [];
-      data.forEach(group => (group.items || []).forEach(item => detailRows.push(Object.assign({ Group: group.name || group.month }, item))));
+      data.forEach(group => (group.items || []).forEach(item => detailRows.push(Object.assign({ Group: group.name || group.month }, formatRowDatesForExport(item)))));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows), 'Detail');
     } else {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), STATE._reportType.slice(0,31));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.map(formatRowDatesForExport)), STATE._reportType.slice(0,31));
     }
     XLSX.writeFile(wb, 'Report_' + STATE._reportType + '.xlsx');
     toast('Detailed report downloaded.');
