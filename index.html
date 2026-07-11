@@ -1142,12 +1142,7 @@ function claimantLabel(r) {
   return r.PartyType === 'Direct' ? (r.DirectName || '—') : (r.EmployeeName || '—');
 }
 function requestForLabel(r) {
-  if (r.RequestForType) {
-    return r.RequestForType === 'Staff'
-      ? (r.RequestForName || '—')
-      : (r.RequestForType + (r.RequestForDetails ? ' — ' + r.RequestForDetails : ''));
-  }
-  return r.RequestFor || '—';
+  return formatRequestFor(r);
 }
 
 async function renderPendingTab(statuses) {
@@ -1279,7 +1274,7 @@ async function renderRequestDetail(requestId) {
       ${infoItem('Team', req.Team || '—')}
       ${infoItem('Location', req.Location || '—')}
       ${infoItem('Claim Type', req.ClaimType)}
-      ${infoItem('Request For', req.RequestForType ? (req.RequestForType === 'Staff' ? (req.RequestForName || '—') + ' (Staff)' : req.RequestForType + (req.RequestForDetails ? ' — ' + req.RequestForDetails : '')) : (req.RequestFor || '—'))}
+      ${infoItem('Request For', formatRequestFor(req))}
       ${infoItem('Claim Amount', fmtMoney(req.ClaimAmount))}
       ${infoItem('Entry Date', fmtDate(req.EntryDate))}
       ${infoItem('Entry Person', req.EntryPersonName || req.CreatedBy || '—')}
@@ -1314,6 +1309,19 @@ async function renderRequestDetail(requestId) {
 
 function infoItem(label, value) {
   return `<div><p class="text-[11px] text-gray-400 font-bold uppercase tracking-wide">${label}</p><p class="text-sm font-semibold text-gray-700 mt-0.5">${value}</p></div>`;
+}
+// Builds the "Request For" display value. For Staff requests it shows
+// Name - Emp ID - Designation (falling back gracefully if any piece is
+// missing); for Doctor/Cab/Other it keeps the type + free-text details.
+function formatRequestFor(req) {
+  if (!req.RequestForType) return req.RequestFor || '—';
+  if (req.RequestForType === 'Staff') {
+    const parts = [req.RequestForName || '—'];
+    if (req.RequestForEmpCode) parts.push(req.RequestForEmpCode);
+    if (req.RequestForDesignation) parts.push(req.RequestForDesignation);
+    return parts.join(' - ');
+  }
+  return req.RequestForType + (req.RequestForDetails ? ' — ' + req.RequestForDetails : '');
 }
 function tabBtn(id, label, active) {
   return `<div class="tab-btn ${active ? 'active' : ''}" data-tab="${id}">${label}</div>`;
@@ -1595,18 +1603,49 @@ function renderReports() {
 
 // Renders the small detail sub-table used when a group/month summary row is
 // expanded, showing every underlying request that rolled into that total.
+// Field names here match what getReports() actually returns from the
+// backend (buildReportRow_): EntryPersonName, MailApproverName, ClaimantName,
+// RequestForName, etc.
 function detailSubTable(items) {
   if (!items || !items.length) return '<p class="text-xs text-gray-400 py-2">No line items.</p>';
   return `<table class="data-table text-xs"><thead><tr>
       <th>Request ID</th><th>Entry Date</th><th>Entry Person</th><th>Mail Approver</th><th>Claimant</th><th>Team</th><th>Request For</th><th>Subject</th><th>Claim Type</th><th>Amount</th><th>Status</th>
     </tr></thead><tbody>
     ${items.map(it => `<tr class="cursor-pointer" onclick="event.stopPropagation();navigate('requestDetail',{requestId:'${it.RequestID}'})">
-      <td class="font-bold text-brand-700">${it.RequestID}</td><td>${it.EntryDate}</td><td>${it.EntryPerson||'—'}</td>
-      <td>${it.MailApprover ? it.MailApprover + (it.MailApprovalDate && it.MailApprovalDate !== '—' ? ' · ' + it.MailApprovalDate : '') : '—'}</td>
-      <td>${it.Claimant}</td><td>${it.Team||'—'}</td><td>${it.RequestFor||'—'}</td>
-      <td class="max-w-[160px] truncate">${it.Subject}</td><td>${it.ClaimType}</td><td class="font-bold">${fmtMoney(it.ClaimAmount)}</td><td>${statusPill(it.Status)}</td>
+      <td class="font-bold text-brand-700">${it.RequestID}</td><td>${fmtDate(it.EntryDate)}</td><td>${it.EntryPersonName||it.CreatedBy||'—'}</td>
+      <td>${it.MailApproverName ? it.MailApproverName + (it.MailApprovalDate ? ' · ' + fmtDate(it.MailApprovalDate) : '') : '—'}</td>
+      <td>${it.ClaimantName||'—'}</td><td>${it.Team||'—'}</td><td>${it.RequestForName||'—'}</td>
+      <td class="max-w-[160px] truncate">${it.Subject||''}</td><td>${it.ClaimType||''}</td><td class="font-bold">${fmtMoney(it.ClaimAmount)}</td><td>${statusPill(it.Status)}</td>
     </tr>`).join('')}
     </tbody></table>`;
+}
+
+// The backend now returns a flat list of fully-detailed rows for every
+// report type (see getReports() / buildReportRow_ in Code.gs). The
+// grouped report types (employee-wise, party-wise, team-wise,
+// claim-type-wise, monthly-summary) still need a name/count/total/items
+// view for display, so we group the flat rows client-side here rather
+// than relying on the backend to pre-aggregate them.
+function groupReportRows(type, rows) {
+  const keyFn = {
+    'employee-wise': r => r.ClaimantName || '(No name)',
+    'party-wise': r => r.Department || '(No department)',
+    'team-wise': r => r.Team || '(No team)',
+    'claim-type-wise': r => r.ClaimType || '(No claim type)',
+    'monthly-summary': r => r.Month || '(No month)'
+  }[type];
+  if (!keyFn) return rows;
+
+  const groups = {};
+  const order = [];
+  rows.forEach(r => {
+    const key = keyFn(r);
+    if (!groups[key]) { groups[key] = { name: key, month: key, count: 0, total: 0, items: [] }; order.push(key); }
+    groups[key].count += 1;
+    groups[key].total += Number(r.ClaimAmount) || 0;
+    groups[key].items.push(r);
+  });
+  return order.map(k => groups[k]);
 }
 
 async function loadReport(type) {
@@ -1619,37 +1658,37 @@ async function loadReport(type) {
     const reportPayload = STATE.user.role === 'Viewer' ? { type, teamAccess: STATE.user.teamAccess } : { type };
     data = (await api('getReports', reportPayload)).data;
   } catch (e) { toast(e.message, 'error'); }
+  // STATE._reportData keeps the raw flat detail rows (as returned by the
+  // backend) — this is what exportReportExcel uses for a full detailed
+  // export regardless of report type.
   STATE._reportData = data; STATE._reportType = type;
 
   if (!data.length) { el.innerHTML = '<p class="text-gray-400 text-sm py-6 text-center">No data available.</p>'; return; }
 
-  if (['employee-wise','party-wise','team-wise','claim-type-wise'].indexOf(type) > -1) {
-    el.innerHTML = `<table class="data-table"><thead><tr><th></th><th>Name</th><th>Request Count</th><th>Total Amount</th></tr></thead><tbody>
-      ${data.map((r,i) => `
+  const GROUPED_TYPES = ['employee-wise','party-wise','team-wise','claim-type-wise','monthly-summary'];
+
+  if (GROUPED_TYPES.indexOf(type) > -1) {
+    const grouped = groupReportRows(type, data);
+    const labelKey = type === 'monthly-summary' ? 'month' : 'name';
+    const labelHeader = type === 'monthly-summary' ? 'Month' : 'Name';
+    el.innerHTML = `<table class="data-table"><thead><tr><th></th><th>${labelHeader}</th><th>Request Count</th><th>Total Amount</th></tr></thead><tbody>
+      ${grouped.map((r,i) => `
         <tr class="cursor-pointer" onclick="toggleReportGroup(${i})">
-          <td class="w-5 text-gray-300" id="rg_caret_${i}">▸</td><td class="font-bold">${r.name}</td><td>${r.count}</td><td class="font-bold">${fmtMoney(r.total)}</td>
+          <td class="w-5 text-gray-300" id="rg_caret_${i}">▸</td><td class="font-bold">${r[labelKey]}</td><td>${r.count}</td><td class="font-bold">${fmtMoney(r.total)}</td>
         </tr>
         <tr id="rg_row_${i}" class="hidden"><td colspan="4" class="bg-gray-50/70">${detailSubTable(r.items)}</td></tr>`).join('')}
     </tbody></table>`;
   } else if (['pending-audit','pending-payment','completed'].indexOf(type) > -1) {
-    el.innerHTML = `<table class="data-table"><thead><tr><th>Request ID</th><th>Entry Date</th><th>Entry Person</th><th>Employee</th><th>Team</th><th>Claim Type</th><th>Amount</th><th>Status</th></tr></thead><tbody>
-      ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${fmtDate(r.EntryDate)}</td><td>${r.EntryPersonName||r.CreatedBy||'—'}</td><td>${r.PartyType==='Direct'?(r.DirectName||'—'):r.EmployeeName}</td><td>${r.Team||'—'}</td><td>${r.ClaimType}</td><td>${fmtMoney(r.ClaimAmount)}</td><td>${statusPill(r.Status)}</td></tr>`).join('')}
+    el.innerHTML = `<table class="data-table"><thead><tr><th>Request ID</th><th>Entry Date</th><th>Entry Person</th><th>Claimant</th><th>Team</th><th>Claim Type</th><th>Amount</th><th>Status</th></tr></thead><tbody>
+      ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${fmtDate(r.EntryDate)}</td><td>${r.EntryPersonName||r.CreatedBy||'—'}</td><td>${r.ClaimantName||'—'}</td><td>${r.Team||'—'}</td><td>${r.ClaimType}</td><td>${fmtMoney(r.ClaimAmount)}</td><td>${statusPill(r.Status)}</td></tr>`).join('')}
     </tbody></table>`;
   } else if (type === 'audit-register') {
     el.innerHTML = `<table class="data-table"><thead><tr><th>Request ID</th><th>Date</th><th>Claimant</th><th>Team</th><th>Audited By</th><th>Amount</th><th>Action</th></tr></thead><tbody>
-      ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${r.AuditDate}</td><td>${r.Claimant||'—'}</td><td>${r.Team||'—'}</td><td>${r.AuditedUserName||r.AuditedUser}</td><td>${fmtMoney(r.AuditedAmount)}</td><td>${statusPill(r.AuditAction)}</td></tr>`).join('')}
+      ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${fmtDate(r.AuditDate)}</td><td>${r.ClaimantName||'—'}</td><td>${r.Team||'—'}</td><td>${r.AuditedBy||'—'}</td><td>${fmtMoney(r.AuditedAmount)}</td><td>${statusPill(r.AuditAction)}</td></tr>`).join('')}
     </tbody></table>`;
   } else if (type === 'payment-register') {
     el.innerHTML = `<table class="data-table"><thead><tr><th>Request ID</th><th>Date</th><th>Claimant</th><th>Team</th><th>Mode</th><th>UTR</th><th>Paid Amount</th></tr></thead><tbody>
-      ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${r.PaymentDate}</td><td>${r.Claimant||'—'}</td><td>${r.Team||'—'}</td><td>${r.PaymentMode}</td><td>${r.UTRNo}</td><td class="font-bold">${fmtMoney(r.PaidAmount)}</td></tr>`).join('')}
-    </tbody></table>`;
-  } else if (type === 'monthly-summary') {
-    el.innerHTML = `<table class="data-table"><thead><tr><th></th><th>Month</th><th>Request Count</th><th>Total Amount</th></tr></thead><tbody>
-      ${data.map((r,i) => `
-        <tr class="cursor-pointer" onclick="toggleReportGroup(${i})">
-          <td class="w-5 text-gray-300" id="rg_caret_${i}">▸</td><td class="font-bold">${r.month}</td><td>${r.count}</td><td class="font-bold">${fmtMoney(r.total)}</td>
-        </tr>
-        <tr id="rg_row_${i}" class="hidden"><td colspan="4" class="bg-gray-50/70">${detailSubTable(r.items)}</td></tr>`).join('')}
+      ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${fmtDate(r.PaymentDate)}</td><td>${r.ClaimantName||'—'}</td><td>${r.Team||'—'}</td><td>${r.PaymentMode||'—'}</td><td>${r.UTRNo||'—'}</td><td class="font-bold">${fmtMoney(r.PaidAmount)}</td></tr>`).join('')}
     </tbody></table>`;
   }
 }
@@ -1735,7 +1774,7 @@ function buildSummaryHtml(d) {
     ${infoItem('Team', req.Team||'—')}
     ${infoItem('Location', req.Location||'—')}
     ${infoItem('Claim Type', req.ClaimType)}
-    ${infoItem('Request For', req.RequestForType ? (req.RequestForType === 'Staff' ? (req.RequestForName||'—')+' (Staff)' : req.RequestForType + (req.RequestForDetails?(' — '+req.RequestForDetails):'')) : (req.RequestFor||'—'))}
+    ${infoItem('Request For', formatRequestFor(req))}
     ${infoItem('Claim Amount', fmtMoney(req.ClaimAmount))}
     ${infoItem('Entry Date', fmtDate(req.EntryDate))}
     ${infoItem('Entry Person', req.EntryPersonName || req.CreatedBy || '—')}
