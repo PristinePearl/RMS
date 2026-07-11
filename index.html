@@ -223,6 +223,8 @@ const MANPOWER_API_URL = 'https://script.google.com/macros/s/AKfycbxdOs22qKMLlf-
 
 const STATUS_COLORS = {
   'Draft':'bg-gray-100 text-gray-600',
+  'Pending Verification':'bg-fuchsia-100 text-fuchsia-700',
+  'Under Verification':'bg-sky-100 text-sky-700',
   'Pending Commercial Audit':'bg-amber-100 text-amber-700',
   'Under Audit':'bg-blue-100 text-blue-700',
   'Query Raised':'bg-red-100 text-red-700',
@@ -240,6 +242,12 @@ const NAV_BY_ROLE = {
     {id:'dashboard', label:'Dashboard', icon:'grid'},
     {id:'newRequest', label:'New Request', icon:'plus'},
     {id:'myRequests', label:'My Requests', icon:'list'},
+    {id:'reports', label:'Reports', icon:'chart'}
+  ],
+  'Verifier': [
+    {id:'dashboard', label:'Dashboard', icon:'grid'},
+    {id:'pendingVerification', label:'Pending Verification', icon:'check'},
+    {id:'allRequests', label:'All Requests', icon:'list'},
     {id:'reports', label:'Reports', icon:'chart'}
   ],
   'Audit': [
@@ -262,6 +270,7 @@ const NAV_BY_ROLE = {
   ],
   'Viewer': [
     {id:'dashboard', label:'Dashboard', icon:'grid'},
+    {id:'verificationPendingTab', label:'Verification Pending', icon:'check'},
     {id:'auditPendingTab', label:'Audit Pending', icon:'check'},
     {id:'approvalPendingTab', label:'Approval Pending', icon:'check'},
     {id:'paymentPendingTab', label:'Payment Pending', icon:'cash'},
@@ -405,6 +414,7 @@ async function doLogin() {
   // Fixed demo credentials (also verified server-side against Users sheet when backend is configured)
   const DEMO = {
     'Entry': { password: 'accounts.entry', role: 'Entry', fullName: 'Accounts Entry User', teamAccess: [] },
+    'Verifier': { password: 'accounts.verifier', role: 'Verifier', fullName: 'Verification User', teamAccess: [] },
     'Audit': { password: 'commercial.audit', role: 'Audit', fullName: 'Commercial Audit User', teamAccess: [] },
     'Approver': { password: 'acc2026', role: 'Approver', fullName: 'Approver', teamAccess: [] },
     'Payments': { password: 'accounts.payments', role: 'Payments', fullName: 'Accounts Payment User', teamAccess: [] },
@@ -497,12 +507,14 @@ async function loadClaimTypes() {
 ========================================================= */
 const PAGE_META = {
   dashboard: ['Dashboard','Overview of reimbursement activity'],
-  newRequest: ['New Reimbursement Request','Create a request and route it to Commercial'],
+  newRequest: ['New Reimbursement Request','Create a request and route it to the Verifier'],
   myRequests: ['My Requests','Requests you have created'],
   allRequests: ['All Requests','Every reimbursement request in the system'],
-  pendingAudit: ['Pending Commercial Audit','Requests awaiting verification, audit or query response'],
+  pendingVerification: ['Pending Verification','Requests awaiting Verifier review or query response'],
+  pendingAudit: ['Pending Commercial Audit','Requests awaiting audit or query response'],
   pendingApproval: ['Pending Approval','Requests audited by Commercial and awaiting Approver sign-off'],
   pendingPayment: ['Pending Payment','Approved claims ready to be paid'],
+  verificationPendingTab: ['Verification Pending','Requests awaiting Verifier review, newest first'],
   auditPendingTab: ['Audit Pending','Requests awaiting Commercial Audit, newest first'],
   approvalPendingTab: ['Approval Pending','Requests awaiting Approver sign-off, newest first'],
   paymentPendingTab: ['Payment Pending','Approved claims awaiting payment, newest first'],
@@ -531,9 +543,11 @@ function navigate(view, params) {
     newRequest: renderNewRequest,
     myRequests: () => renderRequestList({ createdBy: STATE.user.username }),
     allRequests: () => renderRequestList(isViewer ? { teamAccess: STATE.user.teamAccess } : {}),
+    pendingVerification: () => renderRequestList({ statusIn: ['Pending Verification','Under Verification','Query Raised','Waiting for Accounts Reply'] }),
     pendingAudit: () => renderRequestList({ statusIn: ['Pending Commercial Audit','Under Audit','Query Raised','Waiting for Accounts Reply'] }),
     pendingApproval: () => renderRequestList({ statusIn: ['Pending Approval'] }),
     pendingPayment: () => renderRequestList({ statusIn: ['Audit Completed','Pending Payment'] }),
+    verificationPendingTab: () => renderPendingTab(['Pending Verification','Under Verification','Query Raised','Waiting for Accounts Reply']),
     auditPendingTab: () => renderPendingTab(['Pending Commercial Audit','Under Audit','Query Raised','Waiting for Accounts Reply']),
     approvalPendingTab: () => renderPendingTab(['Pending Approval']),
     paymentPendingTab: () => renderPendingTab(['Audit Completed','Pending Payment']),
@@ -561,12 +575,13 @@ async function renderDashboard() {
     const dashPayload = STATE.user.role === 'Viewer' ? { teamAccess: STATE.user.teamAccess } : {};
     d = (await api('getDashboard', dashPayload)).data;
   } catch (e) {
-    d = { totalRequests:0, pendingAudit:0, pendingPayment:0, completed:0, returned:0, totalClaimValue:0, totalAuditedValue:0, totalPaidValue:0, statusBreakdown:{}, claimTypeBreakdown:{}, monthly:{} };
+    d = { totalRequests:0, pendingVerification:0, pendingAudit:0, pendingPayment:0, completed:0, returned:0, totalClaimValue:0, totalAuditedValue:0, totalPaidValue:0, statusBreakdown:{}, claimTypeBreakdown:{}, monthly:{} };
     toast('Showing empty dashboard — connect backend for live data', 'info');
   }
 
   const cards = [
     { label:'Total Requests', value:d.totalRequests, grad:'grad-purple', icon:'list' },
+    { label:'Pending Verification', value:d.pendingVerification, grad:'grad-blue', icon:'check' },
     { label:'Pending Audit', value:d.pendingAudit, grad:'grad-orange', icon:'check' },
     { label:'Pending Payment', value:d.pendingPayment, grad:'grad-blue', icon:'cash' },
     { label:'Completed', value:d.completed, grad:'grad-green', icon:'check' },
@@ -760,7 +775,7 @@ function renderNewRequest() {
 
       <div class="flex justify-end gap-3 pt-3 border-t border-gray-100">
         <button type="button" class="btn btn-outline" onclick="submitRequest(this,false)">Save as Draft</button>
-        <button type="button" class="btn btn-primary" onclick="submitRequest(this,true)">Save & Send to Commercial</button>
+        <button type="button" class="btn btn-primary" onclick="submitRequest(this,true)">Save & Send to Verifier</button>
       </div>
     </form>
   </div>`;
@@ -982,7 +997,7 @@ function applyEmployee(emp) {
   </div>`;
 }
 
-async function submitRequest(btnEl, sendToCommercial) {
+async function submitRequest(btnEl, sendToVerifier) {
   const partyType = document.querySelector('input[name="f_partyType"]:checked').value;
   const requestForType = document.getElementById('f_requestForType').value;
 
@@ -1041,9 +1056,9 @@ async function submitRequest(btnEl, sendToCommercial) {
           toast(uploadRes.failed.length + ' file(s) failed to upload: ' + uploadRes.failed.map(f => f.name).join(', '), 'error');
         }
       }
-      if (sendToCommercial) {
-        await api('sendToCommercial', { requestId, userBy: STATE.user.username });
-        toast('Request ' + requestId + ' submitted to Commercial.');
+      if (sendToVerifier) {
+        await api('sendToVerifier', { requestId, userBy: STATE.user.username });
+        toast('Request ' + requestId + ' submitted to Verifier.');
       } else {
         toast('Request ' + requestId + ' saved as draft.');
       }
@@ -1229,6 +1244,7 @@ function exportListExcel() {
 ========================================================= */
 function backTargetForRole(role) {
   if (role === 'Entry') return 'myRequests';
+  if (role === 'Verifier') return 'pendingVerification';
   if (role === 'Audit') return 'pendingAudit';
   if (role === 'Approver') return 'pendingApproval';
   if (role === 'Payments') return 'pendingPayment';
@@ -1287,6 +1303,7 @@ async function renderRequestDetail(requestId) {
 
   <div class="flex gap-2 mb-4" id="detailTabs">
     ${tabBtn('attachments','Attachments',true)}
+    ${tabBtn('verification','Verification')}
     ${tabBtn('audit','Audit')}
     ${tabBtn('approval','Approval')}
     ${tabBtn('payment','Payment')}
@@ -1345,6 +1362,11 @@ function renderDetailTab(tab, d) {
           </a>`).join('')}</div>
       </div>`;
     }).join('') || '<p class="text-gray-400 text-sm">No files uploaded yet.</p>';
+  }
+  else if (tab === 'verification') {
+    el.innerHTML = (d.verifications && d.verifications.length) ? `<table class="data-table"><thead><tr><th>Date</th><th>Verified By</th><th>Verified Amount</th><th>Action</th><th>Remarks</th></tr></thead><tbody>
+      ${d.verifications.map(v => `<tr><td>${fmtDate(v.VerificationDate)}</td><td>${v.VerifiedUserName || v.VerifiedUser}</td><td>${fmtMoney(v.VerifiedAmount)}</td><td>${statusPill(v.VerificationAction)}</td><td class="whitespace-normal max-w-xs">${v.VerificationRemarks||''}</td></tr>`).join('')}
+    </tbody></table>` : '<p class="text-gray-400 text-sm">No verification entries yet.</p>';
   }
   else if (tab === 'audit') {
     el.innerHTML = d.audit.length ? `<table class="data-table"><thead><tr><th>Date</th><th>Audited By</th><th>Audited Amount</th><th>Action</th><th>Remarks</th></tr></thead><tbody>
@@ -1416,22 +1438,43 @@ function latestOf(arr, dateField) {
 
 function renderActionsPanel(req, d) {
   d = d || {};
+  const latestVerification = latestOf(d.verifications, 'VerificationDate');
   const latestAudit = latestOf(d.audit, 'AuditDate');
   const latestApproval = latestOf(d.approvals, 'ApprovalDate');
   const role = STATE.user.role;
   if (role === 'Entry') {
     if (req.Status === 'Draft' || req.Status === 'Returned') {
-      return `<p class="text-sm text-gray-500 mb-4">This request can be routed to Commercial for audit.</p>
-        <button class="btn btn-primary" onclick="doSendToCommercial(this,'${req.RequestID}')">Send to Commercial</button>`;
+      return `<p class="text-sm text-gray-500 mb-4">This request can be routed to the Verifier for review.</p>
+        <button class="btn btn-primary" onclick="doSendToVerifier(this,'${req.RequestID}')">Send to Verifier</button>`;
     }
     return `<p class="text-sm text-gray-400">No entry actions available at the current status (${req.Status}). Check the Queries tab if a response is required.</p>`;
   }
+  if (role === 'Verifier') {
+    if (['Pending Verification','Under Verification','Waiting for Accounts Reply'].indexOf(req.Status) > -1) {
+      return `
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div class="col-span-2"><label class="label">Verified By (Name)</label><input type="text" id="v_userName" class="field" value="${STATE.user.fullName}" placeholder="Enter the name of the person verifying this claim"></div>
+        <div><label class="label">Verified Amount (₹)</label><input type="number" step="0.01" id="v_amount" class="field" value="${req.ClaimAmount}"></div>
+        <div><label class="label">Verification Date</label><input type="date" id="v_date" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="col-span-2"><label class="label">Verification Remarks / Query Text</label><textarea id="v_remarks" class="field" rows="3"></textarea></div>
+      </div>
+      <div class="flex gap-3 mt-5">
+        <button class="btn btn-green" onclick="doVerify(this,'${req.RequestID}','Approve')">Approve & Send to Audit</button>
+        <button class="btn btn-amber" onclick="doVerify(this,'${req.RequestID}','Query')">Raise Query</button>
+        <button class="btn btn-red" onclick="doVerify(this,'${req.RequestID}','Return')">Return</button>
+      </div>`;
+    }
+    return `<p class="text-sm text-gray-400">No verification actions available at the current status (${req.Status}).</p>`;
+  }
   if (role === 'Audit') {
     if (['Pending Commercial Audit','Under Audit','Waiting for Accounts Reply'].indexOf(req.Status) > -1) {
+      const verificationNote = latestVerification
+        ? `<p class="text-xs text-gray-500 -mt-3 mb-1">Pre-filled from Verifier: ${fmtMoney(latestVerification.VerifiedAmount)} by ${latestVerification.VerifiedUserName || latestVerification.VerifiedUser}. Adjust if needed.</p>`
+        : '';
       return `
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div class="col-span-2"><label class="label">Audited By (Name)</label><input type="text" id="a_userName" class="field" value="${STATE.user.fullName}" placeholder="Enter the name of the person auditing this claim"></div>
-        <div><label class="label">Audited Amount (₹)</label><input type="number" step="0.01" id="a_amount" class="field" value="${req.ClaimAmount}"></div>
+        <div class="col-span-2">${verificationNote}<label class="label">Audited Amount (₹)</label><input type="number" step="0.01" id="a_amount" class="field" value="${latestVerification ? latestVerification.VerifiedAmount : req.ClaimAmount}"></div>
         <div><label class="label">Audit Date</label><input type="date" id="a_date" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
         <div class="col-span-2"><label class="label">Audit Remarks / Query Text</label><textarea id="a_remarks" class="field" rows="3"></textarea></div>
       </div>
@@ -1501,10 +1544,25 @@ function renderActionsPanel(req, d) {
   return '';
 }
 
-async function doSendToCommercial(btnEl, requestId) {
+async function doSendToVerifier(btnEl, requestId) {
   await withButtonLoading(btnEl, async () => {
-    try { await api('sendToCommercial', { requestId, userBy: STATE.user.username }); toast('Sent to Commercial.'); renderRequestDetail(requestId); }
+    try { await api('sendToVerifier', { requestId, userBy: STATE.user.username }); toast('Sent to Verifier.'); renderRequestDetail(requestId); }
     catch (e) { toast(e.message, 'error'); }
+  });
+}
+async function doVerify(btnEl, requestId, action) {
+  const verifiedUserName = document.getElementById('v_userName').value.trim();
+  const verifiedAmount = parseFloat(document.getElementById('v_amount').value) || 0;
+  const verificationDate = document.getElementById('v_date').value;
+  const verificationRemarks = document.getElementById('v_remarks').value;
+  if (!verifiedUserName) { toast('Please enter the name of the person verifying this claim.', 'error'); return; }
+  if (action === 'Query' && !verificationRemarks) { toast('Please enter the query text in Remarks.', 'error'); return; }
+  await withButtonLoading(btnEl, async () => {
+    try {
+      await api('verifierAction', { requestId, verifiedUser: STATE.user.username, verifiedUserName, verifiedAmount, verificationDate, verificationRemarks, action, queryText: verificationRemarks });
+      toast('Verification action recorded: ' + action);
+      renderRequestDetail(requestId);
+    } catch (e) { toast(e.message, 'error'); }
   });
 }
 async function doAudit(btnEl, requestId, action) {
@@ -1574,9 +1632,11 @@ const REPORT_TYPES = [
   {id:'party-wise', label:'Party / Department-wise'},
   {id:'team-wise', label:'Team-wise'},
   {id:'claim-type-wise', label:'Claim Type-wise'},
+  {id:'pending-verification', label:'Pending Verification'},
   {id:'pending-audit', label:'Pending Audit'},
   {id:'pending-payment', label:'Pending Payment'},
   {id:'completed', label:'Completed'},
+  {id:'verification-register', label:'Verification Register'},
   {id:'audit-register', label:'Audit Register'},
   {id:'payment-register', label:'Payment Register'},
   {id:'monthly-summary', label:'Monthly Summary'}
@@ -1678,9 +1738,13 @@ async function loadReport(type) {
         </tr>
         <tr id="rg_row_${i}" class="hidden"><td colspan="4" class="bg-gray-50/70">${detailSubTable(r.items)}</td></tr>`).join('')}
     </tbody></table>`;
-  } else if (['pending-audit','pending-payment','completed'].indexOf(type) > -1) {
+  } else if (['pending-verification','pending-audit','pending-payment','completed'].indexOf(type) > -1) {
     el.innerHTML = `<table class="data-table"><thead><tr><th>Request ID</th><th>Entry Date</th><th>Entry Person</th><th>Claimant</th><th>Team</th><th>Claim Type</th><th>Amount</th><th>Status</th></tr></thead><tbody>
       ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${fmtDate(r.EntryDate)}</td><td>${r.EntryPersonName||r.CreatedBy||'—'}</td><td>${r.ClaimantName||'—'}</td><td>${r.Team||'—'}</td><td>${r.ClaimType}</td><td>${fmtMoney(r.ClaimAmount)}</td><td>${statusPill(r.Status)}</td></tr>`).join('')}
+    </tbody></table>`;
+  } else if (type === 'verification-register') {
+    el.innerHTML = `<table class="data-table"><thead><tr><th>Request ID</th><th>Date</th><th>Claimant</th><th>Team</th><th>Verified By</th><th>Amount</th><th>Action</th></tr></thead><tbody>
+      ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${fmtDate(r.VerificationDate)}</td><td>${r.ClaimantName||'—'}</td><td>${r.Team||'—'}</td><td>${r.VerifiedBy||'—'}</td><td>${fmtMoney(r.VerifiedAmount)}</td><td>${statusPill(r.VerificationAction)}</td></tr>`).join('')}
     </tbody></table>`;
   } else if (type === 'audit-register') {
     el.innerHTML = `<table class="data-table"><thead><tr><th>Request ID</th><th>Date</th><th>Claimant</th><th>Team</th><th>Audited By</th><th>Amount</th><th>Action</th></tr></thead><tbody>
@@ -1707,7 +1771,7 @@ function toggleReportGroup(i) {
 // through fmtDate(), but the Excel export was writing them straight through
 // unformatted. This picks out every known date-ish field on a report row
 // and rewrites it as a plain dd-mmm-yyyy string before export.
-const REPORT_DATE_FIELDS = ['EntryDate','MailReceivedDate','MailApprovalDate','AuditDate','ApprovalDate','PaymentDate'];
+const REPORT_DATE_FIELDS = ['EntryDate','MailReceivedDate','MailApprovalDate','VerificationDate','AuditDate','ApprovalDate','PaymentDate'];
 function exportDateStr_(v) {
   if (!v) return '';
   const dt = new Date(v);
@@ -1799,6 +1863,10 @@ function buildSummaryHtml(d) {
     ${infoItem('Entry Person', req.EntryPersonName || req.CreatedBy || '—')}
     ${infoItem('Mail Approver', req.MailApproverName ? req.MailApproverName + (req.MailApprovalDate?(' · '+fmtDate(req.MailApprovalDate)):'') : '—')}
     ${infoItem('Subject', req.Subject)}
+  </div>
+  <div class="mb-5">
+    <h4 class="font-bold text-sm text-gray-700 mb-2 border-b pb-1">Verification</h4>
+    ${(d.verifications && d.verifications.length) ? d.verifications.map(v => `<p class="text-sm mb-1">${fmtDate(v.VerificationDate)} — ${v.VerifiedUserName || v.VerifiedUser} — ${fmtMoney(v.VerifiedAmount)} — <b>${v.VerificationAction}</b> ${v.VerificationRemarks?('— '+v.VerificationRemarks):''}</p>`).join('') : '<p class="text-sm text-gray-400">Not yet verified.</p>'}
   </div>
   <div class="mb-5">
     <h4 class="font-bold text-sm text-gray-700 mb-2 border-b pb-1">Commercial Audit</h4>
