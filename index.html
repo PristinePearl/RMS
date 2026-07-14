@@ -866,8 +866,7 @@ async function renderCorporateCardDashboard() {
     ${dateFilterBarHtml('corpCard', 'renderCorporateCardDashboard()')}
     <div class="card p-4 mb-6 flex items-start gap-3" style="background:linear-gradient(135deg,#ede9fe,#f5f3ff);">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-700 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${ICONS.card}</svg>
-      <p class="text-sm text-brand-800">Requests are classified as Corporate Card / ICICI automatically from their <b>Subject</b> line (matching "Corporate Card", "Corporate" or "ICICI"). They follow Entry → Verifier → Commercial Audit → Approver, then stop — they are <b>never</b> sent to the Payments module.</p>
-    </div>
+      <p class="text-sm text-brand-800"> <b> ICICI CORPORATE CARD </b> </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       ${cards.map(cd => `
         <div class="card p-5 relative overflow-hidden">
