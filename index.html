@@ -11,10 +11,39 @@
 <link rel="icon" type="image/png" href="https://www.pristinepearlpharma.in/images/alt-logo.png">
 <title>Reimbursement Management System | Pristine Pearl Pharma</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" defer></script>
+<!-- PERF: xlsx / jspdf / html2canvas are only needed for Excel export and
+     PDF summary downloads, not for the initial login/dashboard render.
+     They're loaded on demand via loadLib() the first time a user actually
+     clicks an export/download action — see ensureExcelLib()/ensurePdfLibs()
+     below. This removes ~1MB+ of blocking JS from first load, which matters
+     most on mobile connections. -->
+<script>
+  window.LAZY_LIBS = {
+    xlsx: 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js',
+    jspdf: 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+    html2canvas: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+  };
+  window._loadedLibs = {};
+  function loadLib(name) {
+    if (window._loadedLibs[name]) return window._loadedLibs[name];
+    window._loadedLibs[name] = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = window.LAZY_LIBS[name];
+      s.onload = resolve;
+      s.onerror = () => { delete window._loadedLibs[name]; reject(new Error('Failed to load ' + name + '. Check your connection and try again.')); };
+      document.head.appendChild(s);
+    });
+    return window._loadedLibs[name];
+  }
+  async function ensureExcelLib() { if (typeof XLSX === 'undefined') await loadLib('xlsx'); }
+  async function ensurePdfLibs() {
+    await Promise.all([
+      typeof html2canvas === 'undefined' ? loadLib('html2canvas') : null,
+      typeof window.jspdf === 'undefined' ? loadLib('jspdf') : null
+    ]);
+  }
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
 <script>
@@ -651,26 +680,35 @@ document.getElementById('globalSearch').addEventListener('keydown', e => {
 ========================================================= */
 async function renderDashboard() {
   const c = document.getElementById('viewContainer');
+  const df = STATE.dateFilters.dashboard;
+  const dashPayload = Object.assign(
+    STATE.user.role === 'Viewer' ? { teamAccess: STATE.user.teamAccess } : {},
+    { fromDate: df.from, toDate: df.to }
+  );
+  const corpPayload = STATE.user.role === 'Viewer' ? { teamAccess: STATE.user.teamAccess } : {};
+
+  // PERF: both requests are independent of each other, so fire them
+  // together instead of awaiting one after the other — this roughly
+  // halves the time-to-render on the dashboard, which matters most on
+  // slower mobile connections. allSettled means a failure on one call
+  // doesn't block the other from rendering with its own data.
+  const [dashResult, corpResult] = await Promise.allSettled([
+    api('getDashboard', dashPayload),
+    api('getCorporateCardDashboard', corpPayload)
+  ]);
+
   let d;
-  try {
-    const df = STATE.dateFilters.dashboard;
-    const dashPayload = Object.assign(
-      STATE.user.role === 'Viewer' ? { teamAccess: STATE.user.teamAccess } : {},
-      { fromDate: df.from, toDate: df.to }
-    );
-    d = (await api('getDashboard', dashPayload)).data;
-  } catch (e) {
+  if (dashResult.status === 'fulfilled') {
+    d = dashResult.value.data;
+  } else {
     d = { totalRequests:0, pendingVerification:0, pendingAudit:0, pendingApproval:0, pendingPayment:0, completed:0, returned:0, totalClaimValue:0, totalAuditedValue:0, totalPaidValue:0, statusBreakdown:{}, claimTypeBreakdown:{}, monthly:{} };
     toast('Showing empty dashboard — connect backend for live data', 'info');
   }
 
-  // CORPORATE CARD: fetched independently of the main dashboard call so a
-  // hiccup on one doesn't blank out the other.
   let corp;
-  try {
-    const corpPayload = STATE.user.role === 'Viewer' ? { teamAccess: STATE.user.teamAccess } : {};
-    corp = (await api('getCorporateCardDashboard', corpPayload)).data;
-  } catch (e) {
+  if (corpResult.status === 'fulfilled') {
+    corp = corpResult.value.data;
+  } else {
     corp = { entries:0, auditPending:0, auditedApproved:0, totalClaimValue:0, statusBreakdown:{} };
   }
 
@@ -990,9 +1028,9 @@ function renderNewRequest() {
         ${fileDropZone('MailPDF', 'Mail PDF', false)}
       </div>
 
-      <div class="flex justify-end gap-3 pt-3 border-t border-gray-100">
-        <button type="button" class="btn btn-outline" onclick="submitRequest(this,false)">Save as Draft</button>
-        <button type="button" class="btn btn-primary" onclick="submitRequest(this,true)">Save & Send to Verifier</button>
+      <div class="flex flex-wrap justify-end gap-3 pt-3 border-t border-gray-100">
+        <button type="button" class="btn btn-outline flex-1 sm:flex-none" onclick="submitRequest(this,false)">Save as Draft</button>
+        <button type="button" class="btn btn-primary flex-1 sm:flex-none" onclick="submitRequest(this,true)">Save & Send to Verifier</button>
       </div>
     </form>
   </div>`;
@@ -1437,23 +1475,26 @@ function applyPendingTeamFilter() {
   document.querySelector('#pendingTabTable tbody').innerHTML = pendingTabRowsHtml(filtered);
 }
 
-function exportListExcel() {
+async function exportListExcel(btnEl) {
   const rows = STATE._listRows || [];
   if (!rows.length) { toast('Nothing to export.', 'error'); return; }
-  const data = rows.map(r => ({
-    'Request ID': r.RequestID, 'Entry Date': fmtDate(r.EntryDate), 'Entry Person': r.EntryPersonName || r.CreatedBy,
-    'Party Type': r.PartyType || 'Staff',
-    'Employee': r.PartyType === 'Direct' ? (r.DirectName || '') : r.EmployeeName,
-    'Code': r.PartyType === 'Direct' ? (r.DirectType || '') : r.EmployeeCode,
-    'Team': r.Team || '',
-    'Mail Approver': r.MailApproverName || '', 'Mail Approval Date': r.MailApprovalDate ? fmtDate(r.MailApprovalDate) : '',
-    'Request For': r.RequestForType || '', 'Request For Name': r.RequestForType === 'Staff' ? (r.RequestForName || '') : (r.RequestForDetails || ''),
-    'Subject': r.Subject, 'Claim Type': r.ClaimType, 'Amount': r.ClaimAmount, 'Status': r.Status
-  }));
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Requests');
-  XLSX.writeFile(wb, 'Reimbursement_Requests.xlsx');
+  withButtonLoading(btnEl, async () => {
+    try { await ensureExcelLib(); } catch (e) { toast(e.message, 'error'); return; }
+    const data = rows.map(r => ({
+      'Request ID': r.RequestID, 'Entry Date': fmtDate(r.EntryDate), 'Entry Person': r.EntryPersonName || r.CreatedBy,
+      'Party Type': r.PartyType || 'Staff',
+      'Employee': r.PartyType === 'Direct' ? (r.DirectName || '') : r.EmployeeName,
+      'Code': r.PartyType === 'Direct' ? (r.DirectType || '') : r.EmployeeCode,
+      'Team': r.Team || '',
+      'Mail Approver': r.MailApproverName || '', 'Mail Approval Date': r.MailApprovalDate ? fmtDate(r.MailApprovalDate) : '',
+      'Request For': r.RequestForType || '', 'Request For Name': r.RequestForType === 'Staff' ? (r.RequestForName || '') : (r.RequestForDetails || ''),
+      'Subject': r.Subject, 'Claim Type': r.ClaimType, 'Amount': r.ClaimAmount, 'Status': r.Status
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Requests');
+    XLSX.writeFile(wb, 'Reimbursement_Requests.xlsx');
+  });
 }
 
 /* =========================================================
@@ -1675,10 +1716,10 @@ function renderActionsPanel(req, d) {
         <div><label class="label">Verification Date</label><input type="date" id="v_date" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
         <div class="col-span-2"><label class="label">Verification Remarks / Query Text</label><textarea id="v_remarks" class="field" rows="3"></textarea></div>
       </div>
-      <div class="flex gap-3 mt-5">
-        <button class="btn btn-green" onclick="doVerify(this,'${req.RequestID}','Approve')">Approve & Send to Audit</button>
-        <button class="btn btn-amber" onclick="doVerify(this,'${req.RequestID}','Query')">Raise Query</button>
-        <button class="btn btn-red" onclick="doVerify(this,'${req.RequestID}','Return')">Return</button>
+      <div class="flex flex-wrap gap-3 mt-5">
+        <button class="btn btn-green flex-1 sm:flex-none" onclick="doVerify(this,'${req.RequestID}','Approve')">Approve & Send to Audit</button>
+        <button class="btn btn-amber flex-1 sm:flex-none" onclick="doVerify(this,'${req.RequestID}','Query')">Raise Query</button>
+        <button class="btn btn-red flex-1 sm:flex-none" onclick="doVerify(this,'${req.RequestID}','Return')">Return</button>
       </div>`;
     }
     return `<p class="text-sm text-gray-400">No verification actions available at the current status (${req.Status}).</p>`;
@@ -1695,10 +1736,10 @@ function renderActionsPanel(req, d) {
         <div><label class="label">Audit Date</label><input type="date" id="a_date" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
         <div class="col-span-2"><label class="label">Audit Remarks / Query Text</label><textarea id="a_remarks" class="field" rows="3"></textarea></div>
       </div>
-      <div class="flex gap-3 mt-5">
-        <button class="btn btn-green" onclick="doAudit(this,'${req.RequestID}','Approve')">Approve</button>
-        <button class="btn btn-amber" onclick="doAudit(this,'${req.RequestID}','Query')">Raise Query</button>
-        <button class="btn btn-red" onclick="doAudit(this,'${req.RequestID}','Return')">Return</button>
+      <div class="flex flex-wrap gap-3 mt-5">
+        <button class="btn btn-green flex-1 sm:flex-none" onclick="doAudit(this,'${req.RequestID}','Approve')">Approve</button>
+        <button class="btn btn-amber flex-1 sm:flex-none" onclick="doAudit(this,'${req.RequestID}','Query')">Raise Query</button>
+        <button class="btn btn-red flex-1 sm:flex-none" onclick="doAudit(this,'${req.RequestID}','Return')">Return</button>
       </div>`;
     }
     if (req.Status === 'Audit Completed') {
@@ -1723,10 +1764,10 @@ function renderActionsPanel(req, d) {
         <div><label class="label">Approval Date</label><input type="date" id="ap_date" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
         <div class="col-span-2"><label class="label">Approval Remarks / Query Text</label><textarea id="ap_remarks" class="field" rows="3"></textarea></div>
       </div>
-      <div class="flex gap-3 mt-5">
-        <button class="btn btn-green" onclick="doApprover(this,'${req.RequestID}','Approve')">Approve & Send to Payment</button>
-        <button class="btn btn-amber" onclick="doApprover(this,'${req.RequestID}','Query')">Raise Query</button>
-        <button class="btn btn-red" onclick="doApprover(this,'${req.RequestID}','Return')">Return</button>
+      <div class="flex flex-wrap gap-3 mt-5">
+        <button class="btn btn-green flex-1 sm:flex-none" onclick="doApprover(this,'${req.RequestID}','Approve')">Approve & Send to Payment</button>
+        <button class="btn btn-amber flex-1 sm:flex-none" onclick="doApprover(this,'${req.RequestID}','Query')">Raise Query</button>
+        <button class="btn btn-red flex-1 sm:flex-none" onclick="doApprover(this,'${req.RequestID}','Return')">Return</button>
       </div>`;
     }
     if (req.Status === 'Audited & Approved') {
@@ -1751,8 +1792,8 @@ function renderActionsPanel(req, d) {
         <div class="col-span-2">${approvalNote}<label class="label">Paid Amount (₹)</label><input type="number" step="0.01" id="p_amount" class="field" value="${defaultPaid}"></div>
         <div class="col-span-2"><label class="label">Payment Remarks</label><textarea id="p_remarks" class="field" rows="2"></textarea></div>
       </div>
-      <div class="flex gap-3 mt-5">
-        <button class="btn btn-primary" onclick="doProcessPayment(this,'${req.RequestID}')">Complete Payment</button>
+      <div class="flex flex-wrap gap-3 mt-5">
+        <button class="btn btn-primary w-full sm:w-auto" onclick="doProcessPayment(this,'${req.RequestID}')">Complete Payment</button>
       </div>`;
     }
     if (req.Status === 'Payment Released') {
@@ -2072,6 +2113,7 @@ function exportReportExcel(btnEl) {
   const data = STATE._reportData || [];
   if (!data.length) { toast('Nothing to export.', 'error'); return; }
   withButtonLoading(btnEl, async () => {
+    try { await ensureExcelLib(); } catch (e) { toast(e.message, 'error'); return; }
     const wb = XLSX.utils.book_new();
     const hasItems = data.some(r => Array.isArray(r.items));
     if (hasItems) {
@@ -2100,15 +2142,15 @@ async function openSummaryModal(requestId) {
   host.innerHTML = `
   <div class="modal-backdrop" onclick="if(event.target===this) closeModal()">
     <div class="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-      <div class="flex items-center justify-between p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
-        <h3 class="font-display font-bold text-gray-800">Reimbursement Summary — ${req.RequestID}</h3>
-        <div class="flex gap-2">
-          <button class="btn btn-outline" onclick="window.print()">Print</button>
-          <button class="btn btn-primary" onclick="downloadSummaryPDF('${req.RequestID}')">Download PDF</button>
-          <button class="btn btn-outline" onclick="closeModal()">✕</button>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:p-5 border-b border-gray-100 sticky top-0 bg-white z-10">
+        <h3 class="font-display font-bold text-gray-800 text-sm sm:text-base truncate">Reimbursement Summary — ${req.RequestID}</h3>
+        <div class="flex gap-2 flex-wrap sm:flex-nowrap sm:justify-end">
+          <button class="btn btn-outline !px-3 sm:!px-4 text-xs sm:text-sm" onclick="window.print()">Print</button>
+          <button class="btn btn-primary !px-3 sm:!px-4 text-xs sm:text-sm" onclick="downloadSummaryPDF('${req.RequestID}', this)">Download PDF</button>
+          <button class="btn btn-outline !px-3 sm:!px-4 text-xs sm:text-sm" onclick="closeModal()">✕</button>
         </div>
       </div>
-      <div id="printArea" class="p-8">
+      <div id="printArea" class="p-4 sm:p-8">
         ${buildSummaryHtml(d)}
       </div>
     </div>
@@ -2173,16 +2215,19 @@ function buildSummaryHtml(d) {
 
 function closeModal() { document.getElementById('modalHost').innerHTML = ''; }
 
-async function downloadSummaryPDF(requestId) {
-  const el = document.getElementById('printArea');
-  const canvas = await html2canvas(el, { scale: 2, useCORS: true, allowTaint: false });
-  const imgData = canvas.toDataURL('image/png');
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF('p', 'pt', 'a4');
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const imgHeight = (canvas.height * pageWidth) / canvas.width;
-  pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, imgHeight);
-  pdf.save('Reimbursement_' + requestId + '.pdf');
+async function downloadSummaryPDF(requestId, btnEl) {
+  withButtonLoading(btnEl, async () => {
+    try { await ensurePdfLibs(); } catch (e) { toast(e.message, 'error'); return; }
+    const el = document.getElementById('printArea');
+    const canvas = await html2canvas(el, { scale: 2, useCORS: true, allowTaint: false });
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'pt', 'a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const imgHeight = (canvas.height * pageWidth) / canvas.width;
+    pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, imgHeight);
+    pdf.save('Reimbursement_' + requestId + '.pdf');
+  });
 }
 
 /* =========================================================
