@@ -46,6 +46,8 @@
   .sidebar-link{display:flex;align-items:center;gap:.65rem;padding:.6rem .9rem;border-radius:12px;color:#e9e4ff;font-weight:600;font-size:.875rem;transition:.15s;}
   .sidebar-link:hover{background:rgba(255,255,255,.10);}
   .sidebar-link.active{background:rgba(255,255,255,.18);color:#fff;}
+  .nav-badge{margin-left:auto;background:#f87171;color:#fff;font-size:.66rem;font-weight:800;line-height:1;padding:.24rem .45rem;border-radius:999px;min-width:18px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.15);}
+  .nav-badge.hidden{display:none;}
   .status-pill{display:inline-flex;align-items:center;gap:.35rem;padding:.28rem .7rem;border-radius:999px;font-size:.72rem;font-weight:700;white-space:nowrap;}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font-weight:700;font-size:.85rem;border-radius:12px;padding:.6rem 1.1rem;transition:.15s;cursor:pointer;}
   .btn-primary{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;box-shadow:0 6px 16px -4px rgba(79,70,229,.5);}
@@ -218,7 +220,7 @@
 /* =========================================================
    CONFIG
 ========================================================= */
-const API_URL = 'https://script.google.com/macros/s/AKfycbxdhUqzGEp_p5yENYUfAcg6m_BYnuGwOg4xXq-g63mwBxqSDI2V8hQIyTIeYGMF5JsGXA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwg09P5UvFFMa5zMyHV4CNhR9l6aJR0UMbwnkCT77QZz99Yohl1iqv6E37PMHgciJxfjw/exec';
 const MANPOWER_API_URL = 'https://script.google.com/macros/s/AKfycbxdOs22qKMLlf-0PCOjb4KHBXW2WtHaWKclaSFW5vRVxfk87d3PltASdbRGcVDi_yabSw/exec';
 
 const STATUS_COLORS = {
@@ -234,7 +236,8 @@ const STATUS_COLORS = {
   'Pending Payment':'bg-purple-100 text-purple-700',
   'Payment Released':'bg-teal-100 text-teal-700',
   'Completed':'bg-emerald-100 text-emerald-700',
-  'Returned':'bg-rose-100 text-rose-700'
+  'Returned':'bg-rose-100 text-rose-700',
+  'Audited & Approved':'bg-violet-100 text-violet-700'
 };
 
 const NAV_BY_ROLE = {
@@ -242,30 +245,35 @@ const NAV_BY_ROLE = {
     {id:'dashboard', label:'Dashboard', icon:'grid'},
     {id:'newRequest', label:'New Request', icon:'plus'},
     {id:'myRequests', label:'My Requests', icon:'list'},
+    {id:'corporateCardDashboard', label:'Corporate Card', icon:'card'},
     {id:'reports', label:'Reports', icon:'chart'}
   ],
   'Verifier': [
     {id:'dashboard', label:'Dashboard', icon:'grid'},
     {id:'pendingVerification', label:'Pending Verification', icon:'check'},
     {id:'allRequests', label:'All Requests', icon:'list'},
+    {id:'corporateCardDashboard', label:'Corporate Card', icon:'card'},
     {id:'reports', label:'Reports', icon:'chart'}
   ],
   'Audit': [
     {id:'dashboard', label:'Dashboard', icon:'grid'},
     {id:'pendingAudit', label:'Pending Audit', icon:'check'},
     {id:'allRequests', label:'All Requests', icon:'list'},
+    {id:'corporateCardDashboard', label:'Corporate Card', icon:'card'},
     {id:'reports', label:'Reports', icon:'chart'}
   ],
   'Approver': [
     {id:'dashboard', label:'Dashboard', icon:'grid'},
     {id:'pendingApproval', label:'Pending Approval', icon:'check'},
     {id:'allRequests', label:'All Requests', icon:'list'},
+    {id:'corporateCardDashboard', label:'Corporate Card', icon:'card'},
     {id:'reports', label:'Reports', icon:'chart'}
   ],
   'Payments': [
     {id:'dashboard', label:'Dashboard', icon:'grid'},
     {id:'pendingPayment', label:'Pending Payment', icon:'cash'},
     {id:'allRequests', label:'All Requests', icon:'list'},
+    {id:'corporateCardDashboard', label:'Corporate Card', icon:'card'},
     {id:'reports', label:'Reports', icon:'chart'}
   ],
   'Viewer': [
@@ -276,6 +284,7 @@ const NAV_BY_ROLE = {
     {id:'paymentPendingTab', label:'Payment Pending', icon:'cash'},
     {id:'completedPaymentTab', label:'Completed Payments', icon:'cash'},
     {id:'allRequests', label:'All Requests', icon:'list'},
+    {id:'corporateCardDashboard', label:'Corporate Card', icon:'card'},
     {id:'reports', label:'Reports', icon:'chart'}
   ]
 };
@@ -286,7 +295,8 @@ const ICONS = {
   list:'<path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/>',
   chart:'<path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14"/>',
   check:'<path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>',
-  cash:'<path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>'
+  cash:'<path stroke-linecap="round" stroke-linejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"/>',
+  card:'<path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M5 6h14a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2zm2 8h4"/>'
 };
 
 /* =========================================================
@@ -299,8 +309,47 @@ let STATE = {
   requestCache: {},
   pendingFiles: { Attachment: [], SponsorSheet: [], MailPDF: [] },
   currentDetailId: null,
-  charts: {}
+  charts: {},
+  // DATE FILTER: kept per-view so switching views doesn't clobber each
+  // other's selected range. { from: 'yyyy-mm-dd', to: 'yyyy-mm-dd' }
+  dateFilters: {
+    dashboard: { from: '', to: '' },
+    corpCard: { from: '', to: '' },
+    reports: { from: '', to: '' }
+  }
 };
+
+// DATE FILTER: shared "From / To" range bar used on the Dashboard,
+// Corporate Card Dashboard and Reports views. `key` indexes
+// STATE.dateFilters and `onApply` is the JS expression (as a string) run
+// when Apply/Clear is clicked — each view passes in its own reload call.
+function dateFilterBarHtml(key, onApply) {
+  const f = STATE.dateFilters[key] || { from: '', to: '' };
+  return `
+    <div class="card p-4 mb-5 flex flex-wrap items-end gap-3">
+      <div>
+        <label class="label">From</label>
+        <input type="date" id="df_${key}_from" class="field !py-2" value="${f.from || ''}">
+      </div>
+      <div>
+        <label class="label">To</label>
+        <input type="date" id="df_${key}_to" class="field !py-2" value="${f.to || ''}">
+      </div>
+      <button class="btn btn-primary" onclick="applyDateFilter('${key}', () => { ${onApply} })">Apply</button>
+      <button class="btn btn-outline" onclick="clearDateFilter('${key}', () => { ${onApply} })">Clear</button>
+      ${(f.from || f.to) ? `<span class="text-xs text-gray-400 self-center">Filtering by Entry Date${f.from ? ' from ' + f.from : ''}${f.to ? ' to ' + f.to : ''}</span>` : ''}
+    </div>`;
+}
+function applyDateFilter(key, reload) {
+  const from = document.getElementById(`df_${key}_from`).value;
+  const to = document.getElementById(`df_${key}_to`).value;
+  STATE.dateFilters[key] = { from, to };
+  reload();
+}
+function clearDateFilter(key, reload) {
+  STATE.dateFilters[key] = { from: '', to: '' };
+  reload();
+}
 
 /* =========================================================
    API HELPER  (POST as text/plain to dodge CORS preflight)
@@ -389,6 +438,19 @@ function fmtDateTime(d) {
 function statusPill(status) {
   const cls = STATUS_COLORS[status] || 'bg-gray-100 text-gray-600';
   return `<span class="status-pill ${cls}">${status}</span>`;
+}
+// CORPORATE CARD: mirrors the backend's isCorporateCardClaim_() so the UI
+// can show a badge without waiting on a round trip — the backend remains
+// the source of truth for the actual workflow/status logic.
+function isCorporateCardSubject(subject) {
+  if (!subject) return false;
+  const s = String(subject).toLowerCase();
+  return s.indexOf('corporate card') > -1 || s.indexOf('corporate') > -1 || s.indexOf('icici') > -1;
+}
+function corporateCardBadge(subject) {
+  return isCorporateCardSubject(subject)
+    ? '<span class="status-pill bg-violet-100 text-violet-700 ml-2">Corporate Card</span>'
+    : '';
 }
 function initials(name) {
   if (!name) return '?';
@@ -486,8 +548,25 @@ function buildSidebar() {
   el.innerHTML = nav.map(n => `
     <div class="sidebar-link" data-view="${n.id}" onclick="navigate('${n.id}')">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-4.5 h-4.5" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${ICONS[n.icon]}</svg>
-      ${n.label}
+      <span class="flex-1">${n.label}</span>
+      <span class="nav-badge hidden" data-badge="${n.id}"></span>
     </div>`).join('');
+}
+
+// PENDING-COUNT BADGES: shows a small numeric pill on a sidebar tab next
+// to its label (e.g. "Pending Audit  [4]"). Counts above 99 are shown as
+// "99+" rather than an exact number. Hidden entirely when count is 0.
+function setNavBadge(view, count) {
+  const el = document.querySelector(`.nav-badge[data-badge="${view}"]`);
+  if (!el) return;
+  const n = Number(count) || 0;
+  if (n > 0) {
+    el.textContent = n > 99 ? '99+' : String(n);
+    el.classList.remove('hidden');
+  } else {
+    el.textContent = '';
+    el.classList.add('hidden');
+  }
 }
 
 async function loadClaimTypes() {
@@ -519,6 +598,7 @@ const PAGE_META = {
   approvalPendingTab: ['Approval Pending','Requests awaiting Approver sign-off, newest first'],
   paymentPendingTab: ['Payment Pending','Approved claims awaiting payment, newest first'],
   completedPaymentTab: ['Completed Payments','Claims that have been paid, newest first'],
+  corporateCardDashboard: ['Corporate Card Dashboard','Corporate Card / ICICI claims — tracked outside the Payments workflow'],
   reports: ['Reports','Analytics & exportable registers'],
   requestDetail: ['Request Detail','Full reimbursement lifecycle']
 };
@@ -552,6 +632,7 @@ function navigate(view, params) {
     approvalPendingTab: () => renderPendingTab(['Pending Approval']),
     paymentPendingTab: () => renderPendingTab(['Audit Completed','Pending Payment']),
     completedPaymentTab: () => renderPendingTab(['Payment Released','Completed']),
+    corporateCardDashboard: renderCorporateCardDashboard,
     reports: renderReports,
     requestDetail: () => renderRequestDetail(STATE.viewParams.requestId)
   };
@@ -572,12 +653,45 @@ async function renderDashboard() {
   const c = document.getElementById('viewContainer');
   let d;
   try {
-    const dashPayload = STATE.user.role === 'Viewer' ? { teamAccess: STATE.user.teamAccess } : {};
+    const df = STATE.dateFilters.dashboard;
+    const dashPayload = Object.assign(
+      STATE.user.role === 'Viewer' ? { teamAccess: STATE.user.teamAccess } : {},
+      { fromDate: df.from, toDate: df.to }
+    );
     d = (await api('getDashboard', dashPayload)).data;
   } catch (e) {
-    d = { totalRequests:0, pendingVerification:0, pendingAudit:0, pendingPayment:0, completed:0, returned:0, totalClaimValue:0, totalAuditedValue:0, totalPaidValue:0, statusBreakdown:{}, claimTypeBreakdown:{}, monthly:{} };
+    d = { totalRequests:0, pendingVerification:0, pendingAudit:0, pendingApproval:0, pendingPayment:0, completed:0, returned:0, totalClaimValue:0, totalAuditedValue:0, totalPaidValue:0, statusBreakdown:{}, claimTypeBreakdown:{}, monthly:{} };
     toast('Showing empty dashboard — connect backend for live data', 'info');
   }
+
+  // CORPORATE CARD: fetched independently of the main dashboard call so a
+  // hiccup on one doesn't blank out the other.
+  let corp;
+  try {
+    const corpPayload = STATE.user.role === 'Viewer' ? { teamAccess: STATE.user.teamAccess } : {};
+    corp = (await api('getCorporateCardDashboard', corpPayload)).data;
+  } catch (e) {
+    corp = { entries:0, auditPending:0, auditedApproved:0, totalClaimValue:0, statusBreakdown:{} };
+  }
+
+  // PENDING APPROVAL COUNT: getDashboard doesn't return a dedicated
+  // pendingApproval field (only Verification/Audit/Payment are aggregated
+  // server-side), so fall back to reading it out of the status breakdown,
+  // which already carries a "Pending Approval" bucket for the chart.
+  const pendingApprovalCount = (typeof d.pendingApproval === 'number' && d.pendingApproval > 0)
+    ? d.pendingApproval
+    : ((d.statusBreakdown && d.statusBreakdown['Pending Approval']) || 0);
+
+  // Reflect current pending counts as badges on the sidebar tabs.
+  setNavBadge('pendingVerification', d.pendingVerification);
+  setNavBadge('pendingAudit', d.pendingAudit);
+  setNavBadge('pendingApproval', pendingApprovalCount);
+  setNavBadge('pendingPayment', d.pendingPayment);
+  setNavBadge('verificationPendingTab', d.pendingVerification);
+  setNavBadge('auditPendingTab', d.pendingAudit);
+  setNavBadge('approvalPendingTab', pendingApprovalCount);
+  setNavBadge('paymentPendingTab', d.pendingPayment);
+  setNavBadge('corporateCardDashboard', corp.auditPending);
 
   const cards = [
     { label:'Total Requests', value:d.totalRequests, grad:'grad-purple', icon:'list' },
@@ -594,6 +708,7 @@ async function renderDashboard() {
   ];
 
   c.innerHTML = `
+    ${dateFilterBarHtml('dashboard', 'renderDashboard()')}
     <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
       ${cards.map(cd => `
         <div class="card p-5 relative overflow-hidden">
@@ -610,6 +725,32 @@ async function renderDashboard() {
           <p class="text-white/80 text-xs font-bold uppercase tracking-wide">${cd.label}</p>
           <p class="text-white text-3xl font-display font-extrabold mt-2">${cd.value}</p>
         </div>`).join('')}
+    </div>
+    <div class="card p-6 mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 grad-purple rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4.5 h-4.5 text-white" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${ICONS.card}</svg>
+          </div>
+          <h3 class="font-display font-bold text-gray-800">Corporate Card Summary</h3>
+        </div>
+        <button class="btn btn-outline" onclick="navigate('corporateCardDashboard')">View Full Dashboard</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div class="p-4 rounded-xl bg-violet-50 border border-violet-100">
+          <p class="text-2xl font-display font-extrabold text-brand-700">${corp.entries}</p>
+          <p class="text-xs text-gray-500 font-semibold mt-1">Entries</p>
+        </div>
+        <div class="p-4 rounded-xl bg-amber-50 border border-amber-100">
+          <p class="text-2xl font-display font-extrabold text-amber-600">${corp.auditPending}</p>
+          <p class="text-xs text-gray-500 font-semibold mt-1">Audit Pending</p>
+        </div>
+        <div class="p-4 rounded-xl bg-emerald-50 border border-emerald-100">
+          <p class="text-2xl font-display font-extrabold text-emerald-600">${corp.auditedApproved}</p>
+          <p class="text-xs text-gray-500 font-semibold mt-1">Audited &amp; Approved</p>
+        </div>
+      </div>
+      <p class="text-xs text-gray-400 mt-3">Total Claim Value: <b class="text-gray-600">${fmtMoney(corp.totalClaimValue)}</b></p>
     </div>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
       <div class="card p-6">
@@ -646,6 +787,82 @@ function drawChart(id, type, labels, datasets) {
     type, data: { labels, datasets },
     options: { responsive:true, plugins:{ legend:{ display: type==='doughnut', position:'bottom', labels:{ boxWidth:10, font:{size:10} } } }, scales: type==='doughnut' ? {} : { y:{ beginAtZero:true } } }
   });
+}
+
+/* =========================================================
+   CORPORATE CARD DASHBOARD
+   Requests whose Subject contains "Corporate Card", "Corporate"
+   or "ICICI" (case-insensitive) follow a shortened workflow:
+   Entry -> Verifier -> Commercial Audit -> Approver -> Audited &
+   Approved. They are never routed to Payments, so this dashboard
+   (backed by getCorporateCardDashboard on the server) is the only
+   place their lifecycle is tracked end-to-end.
+========================================================= */
+async function renderCorporateCardDashboard() {
+  const c = document.getElementById('viewContainer');
+  let d;
+  try {
+    const df = STATE.dateFilters.corpCard;
+    const payload = Object.assign(
+      STATE.user.role === 'Viewer' ? { teamAccess: STATE.user.teamAccess } : {},
+      { fromDate: df.from, toDate: df.to }
+    );
+    d = (await api('getCorporateCardDashboard', payload)).data;
+  } catch (e) {
+    d = { entries:0, auditPending:0, auditedApproved:0, totalClaimValue:0, statusBreakdown:{} };
+    toast('Showing empty Corporate Card dashboard — connect backend for live data', 'info');
+  }
+
+  setNavBadge('corporateCardDashboard', d.auditPending);
+
+  const cards = [
+    { label:'Entries', value:d.entries, grad:'grad-purple', icon:'card',
+      hint:'Total Corporate Card / ICICI requests created' },
+    { label:'Audit Pending', value:d.auditPending, grad:'grad-orange', icon:'check',
+      hint:'Pending Verification, Audit, Approval or with a Query Raised' },
+    { label:'Audited & Approved', value:d.auditedApproved, grad:'grad-green', icon:'check',
+      hint:'Approved by the Approver — workflow complete, not sent to Payments' }
+  ];
+
+  c.innerHTML = `
+    ${dateFilterBarHtml('corpCard', 'renderCorporateCardDashboard()')}
+    <div class="card p-4 mb-6 flex items-start gap-3" style="background:linear-gradient(135deg,#ede9fe,#f5f3ff);">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-700 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${ICONS.card}</svg>
+      <p class="text-sm text-brand-800">Requests are classified as Corporate Card / ICICI automatically from their <b>Subject</b> line (matching "Corporate Card", "Corporate" or "ICICI"). They follow Entry → Verifier → Commercial Audit → Approver, then stop — they are <b>never</b> sent to the Payments module.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      ${cards.map(cd => `
+        <div class="card p-5 relative overflow-hidden">
+          <div class="w-10 h-10 ${cd.grad} rounded-xl flex items-center justify-center mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${ICONS[cd.icon]}</svg>
+          </div>
+          <p class="text-2xl font-display font-extrabold text-gray-800">${cd.value}</p>
+          <p class="text-xs text-gray-500 font-semibold mt-1">${cd.label}</p>
+          <p class="text-[11px] text-gray-400 mt-1">${cd.hint}</p>
+        </div>`).join('')}
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      <div class="card p-6" style="background:linear-gradient(135deg,#7c3aed,#4f46e5)">
+        <p class="text-white/80 text-xs font-bold uppercase tracking-wide">Total Claim Value</p>
+        <p class="text-white text-3xl font-display font-extrabold mt-2">${fmtMoney(d.totalClaimValue)}</p>
+      </div>
+      <div class="card p-6">
+        <h3 class="font-display font-bold text-gray-800 mb-4">Status Breakdown</h3>
+        <canvas id="corpCardStatusChart" height="140"></canvas>
+      </div>
+    </div>
+    <div class="card p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="font-display font-bold text-gray-800">Corporate Card Register</h3>
+        <button class="btn btn-outline" onclick="navigate('reports');setTimeout(()=>loadReport('corporate-card-register'),50)">Open Full Register</button>
+      </div>
+      <p class="text-xs text-gray-400">Search, filter and Excel export are available from Reports → Corporate Card Register.</p>
+    </div>
+  `;
+
+  const palette = ['#7c3aed','#ec4899','#0ea5e9','#10b981','#f97316','#ef4444','#6366f1','#14b8a6','#f59e0b','#f43f5e'];
+  const statusLabels = Object.keys(d.statusBreakdown);
+  drawChart('corpCardStatusChart', 'doughnut', statusLabels, [{ data: Object.values(d.statusBreakdown), backgroundColor: palette }]);
 }
 
 /* =========================================================
@@ -1277,7 +1494,7 @@ async function renderRequestDetail(requestId) {
         <h2 class="text-2xl font-display font-extrabold text-gray-800">${req.RequestID}</h2>
       </div>
       <div class="text-right">
-        ${statusPill(req.Status)}
+        ${statusPill(req.Status)}${corporateCardBadge(req.Subject)}
         <p class="text-xs text-gray-400 mt-2">Last updated ${fmtDateTime(req.LastUpdated)}</p>
       </div>
     </div>
@@ -1512,6 +1729,9 @@ function renderActionsPanel(req, d) {
         <button class="btn btn-red" onclick="doApprover(this,'${req.RequestID}','Return')">Return</button>
       </div>`;
     }
+    if (req.Status === 'Audited & Approved') {
+      return `<p class="text-sm text-gray-500">This is a Corporate Card / ICICI claim. It has been audited and approved, and its workflow is now complete — it is not routed to Payments.</p>`;
+    }
     return `<p class="text-sm text-gray-400">No approver actions available at the current status (${req.Status}).</p>`;
   }
   if (role === 'Viewer') {
@@ -1639,12 +1859,14 @@ const REPORT_TYPES = [
   {id:'verification-register', label:'Verification Register'},
   {id:'audit-register', label:'Audit Register'},
   {id:'payment-register', label:'Payment Register'},
-  {id:'monthly-summary', label:'Monthly Summary'}
+  {id:'monthly-summary', label:'Monthly Summary'},
+  {id:'corporate-card-register', label:'Corporate Card Register'}
 ];
 
 function renderReports() {
   const c = document.getElementById('viewContainer');
   c.innerHTML = `
+    ${dateFilterBarHtml('reports', "loadReport(STATE._reportType || 'employee-wise')")}
     <div class="flex flex-wrap gap-2 mb-5">
       ${REPORT_TYPES.map(r => `<button class="tab-btn ${r.id==='employee-wise'?'active':''}" data-report="${r.id}" onclick="loadReport('${r.id}')">${r.label}</button>`).join('')}
     </div>
@@ -1715,7 +1937,11 @@ async function loadReport(type) {
   el.innerHTML = '<p class="text-gray-400 text-sm">Loading...</p>';
   let data = [];
   try {
-    const reportPayload = STATE.user.role === 'Viewer' ? { type, teamAccess: STATE.user.teamAccess } : { type };
+    const df = STATE.dateFilters.reports;
+    const reportPayload = Object.assign(
+      STATE.user.role === 'Viewer' ? { type, teamAccess: STATE.user.teamAccess } : { type },
+      { fromDate: df.from, toDate: df.to }
+    );
     data = (await api('getReports', reportPayload)).data;
   } catch (e) { toast(e.message, 'error'); }
   // STATE._reportData keeps the raw flat detail rows (as returned by the
@@ -1754,7 +1980,60 @@ async function loadReport(type) {
     el.innerHTML = `<table class="data-table"><thead><tr><th>Request ID</th><th>Date</th><th>Claimant</th><th>Team</th><th>Mode</th><th>UTR</th><th>Paid Amount</th></tr></thead><tbody>
       ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${fmtDate(r.PaymentDate)}</td><td>${r.ClaimantName||'—'}</td><td>${r.Team||'—'}</td><td>${r.PaymentMode||'—'}</td><td>${r.UTRNo||'—'}</td><td class="font-bold">${fmtMoney(r.PaidAmount)}</td></tr>`).join('')}
     </tbody></table>`;
+  } else if (type === 'corporate-card-register') {
+    STATE._corpCardRegisterData = data;
+    el.innerHTML = corporateCardRegisterHtml(data);
   }
+}
+
+// CORPORATE CARD: Corporate Card / ICICI claims (Subject contains
+// "Corporate Card"/"Corporate"/"ICICI") never reach Payments — this
+// register is their dedicated, searchable/filterable audit trail. Columns
+// follow the spec: Request ID, Entry Date, Employee Name, Employee Code,
+// Department, Team, Subject, Claim Type, Claim Amount, Verified Amount,
+// Audited Amount, Approved Amount, Approved By, Current Status.
+function corporateCardRegisterHtml(data) {
+  const statuses = Array.from(new Set(data.map(r => r.Status))).sort();
+  return `
+    <div class="flex flex-col sm:flex-row gap-2 mb-4">
+      <div class="relative flex-1">
+        <input id="corpCardSearch" class="field !py-2 pl-9" placeholder="Search Request ID, employee, department, team, subject..." oninput="filterCorporateCardRegister()">
+        <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
+      </div>
+      <select id="corpCardStatusFilter" class="field sm:!w-56" onchange="filterCorporateCardRegister()">
+        <option value="">All Statuses</option>
+        ${statuses.map(s => `<option value="${s}">${s}</option>`).join('')}
+      </select>
+    </div>
+    <div id="corpCardRegisterTableWrap">${corporateCardRegisterRows(data)}</div>`;
+}
+
+function corporateCardRegisterRows(data) {
+  if (!data.length) return '<p class="text-gray-400 text-sm py-6 text-center">No matching Corporate Card requests.</p>';
+  return `<table class="data-table"><thead><tr>
+      <th>Request ID</th><th>Entry Date</th><th>Employee Name</th><th>Employee Code</th><th>Department</th><th>Team</th><th>Subject</th><th>Claim Type</th><th>Claim Amount</th><th>Verified Amount</th><th>Audited Amount</th><th>Approved Amount</th><th>Approved By</th><th>Status</th>
+    </tr></thead><tbody>
+    ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})">
+      <td class="font-bold text-brand-700">${r.RequestID}</td><td>${fmtDate(r.EntryDate)}</td><td>${r.ClaimantName||'—'}</td><td>${r.ClaimantCode||'—'}</td>
+      <td>${r.Department||'—'}</td><td>${r.Team||'—'}</td><td class="max-w-[200px] truncate">${r.Subject||''}</td><td>${r.ClaimType||''}</td>
+      <td class="font-bold">${fmtMoney(r.ClaimAmount)}</td><td>${r.VerifiedAmount!==''&&r.VerifiedAmount!==undefined?fmtMoney(r.VerifiedAmount):'—'}</td>
+      <td>${r.AuditedAmount!==''&&r.AuditedAmount!==undefined?fmtMoney(r.AuditedAmount):'—'}</td><td>${r.ApprovedAmount!==''&&r.ApprovedAmount!==undefined?fmtMoney(r.ApprovedAmount):'—'}</td>
+      <td>${r.ApprovedBy||'—'}</td><td>${statusPill(r.Status)}</td>
+    </tr>`).join('')}
+    </tbody></table>`;
+}
+
+function filterCorporateCardRegister() {
+  const q = (document.getElementById('corpCardSearch')?.value || '').toLowerCase().trim();
+  const status = document.getElementById('corpCardStatusFilter')?.value || '';
+  const all = STATE._corpCardRegisterData || [];
+  const filtered = all.filter(r => {
+    if (status && r.Status !== status) return false;
+    if (!q) return true;
+    return (r.RequestID + (r.ClaimantName||'') + (r.ClaimantCode||'') + (r.Department||'') + (r.Team||'') + (r.Subject||'') + (r.ClaimType||''))
+      .toLowerCase().indexOf(q) > -1;
+  });
+  document.getElementById('corpCardRegisterTableWrap').innerHTML = corporateCardRegisterRows(filtered);
 }
 
 function toggleReportGroup(i) {
@@ -1838,10 +2117,11 @@ async function openSummaryModal(requestId) {
 
 function buildSummaryHtml(d) {
   const req = d.request;
+  const isCorpCard = d.isCorporateCard || isCorporateCardSubject(req.Subject);
   return `
   <div class="border-b-2 border-brand-600 pb-4 mb-5 flex justify-between items-start">
     <div>
-      <h2 class="text-xl font-display font-extrabold text-brand-700">${d.companyName || 'Pristine Pearl Pharma Pvt Ltd'}</h2>
+      <h2 class="text-xl font-display font-extrabold text-brand-700">${d.companyName || 'Pristine Pearl Pharma Pvt Ltd'}${isCorpCard ? corporateCardBadge(req.Subject) : ''}</h2>
       <p class="text-xs text-gray-400">Reimbursement Summary Document</p>
     </div>
     <img src="${d.qrUrl}" crossorigin="anonymous" class="w-20 h-20" alt="QR Code">
@@ -1876,10 +2156,11 @@ function buildSummaryHtml(d) {
     <h4 class="font-bold text-sm text-gray-700 mb-2 border-b pb-1">Approver</h4>
     ${(d.approvals && d.approvals.length) ? d.approvals.map(a => `<p class="text-sm mb-1">${fmtDate(a.ApprovalDate)} — ${a.ApprovedUserName || a.ApprovedUser} — ${fmtMoney(a.ApprovedAmount)} — <b>${a.ApprovalAction}</b> ${a.ApprovalRemarks?('— '+a.ApprovalRemarks):''}</p>`).join('') : '<p class="text-sm text-gray-400">Not yet reviewed by Approver.</p>'}
   </div>
+  ${isCorpCard ? '' : `
   <div class="mb-5">
     <h4 class="font-bold text-sm text-gray-700 mb-2 border-b pb-1">Payment Details</h4>
     ${d.payments.length ? d.payments.map(p => `<p class="text-sm mb-1">${fmtDate(p.PaymentDate)} — ${p.PaymentMode} — UTR: ${p.UTRNo} — <b>${fmtMoney(p.PaidAmount)}</b> — ${p.PaidByName || p.PaidBy}</p>`).join('') : '<p class="text-sm text-gray-400">Payment pending.</p>'}
-  </div>
+  </div>`}
   <div class="mb-5">
     <h4 class="font-bold text-sm text-gray-700 mb-2 border-b pb-1">Attachment List</h4>
     ${d.attachments.length ? `<ul class="list-disc pl-5 text-sm space-y-0.5">${d.attachments.map(a => `<li>${a.FileName} (${a.Category})</li>`).join('')}</ul>` : '<p class="text-sm text-gray-400">No attachments.</p>'}
