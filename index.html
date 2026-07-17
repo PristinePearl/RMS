@@ -513,6 +513,26 @@ function formatRemarks(text) {
     }).join('');
     return `<table class="remarks-table">${rowsHtml}</table>`;
   }
+  // Case 3: "Label   Value" lines where columns are lined up with multiple
+  // spaces instead of a real tab or a dash (e.g. text typed/pasted with
+  // padding to keep it visually aligned in its original source). Plain HTML
+  // collapses repeated spaces to one, which is what was flattening these
+  // onto a single run — so catch the pattern here and render it as a table
+  // instead of relying on whitespace being preserved.
+  const spaceSep = /\s{2,}/;
+  const spaceLines = lines.filter(l => spaceSep.test(l.trim()));
+  if (lines.length >= 2 && spaceLines.length >= lines.length * 0.6) {
+    const rowsHtml = lines.map(l => {
+      const trimmed = l.trim();
+      const m = trimmed.match(spaceSep);
+      if (!m) return `<tr><td class="remarks-cell" colspan="2">${escHtml(trimmed)}</td></tr>`;
+      const idx = m.index;
+      const label = trimmed.slice(0, idx);
+      const value = trimmed.slice(idx + m[0].length);
+      return `<tr><td class="remarks-cell remarks-label">${escHtml(label)}</td><td class="remarks-cell">${escHtml(value)}</td></tr>`;
+    }).join('');
+    return `<table class="remarks-table">${rowsHtml}</table>`;
+  }
   // Otherwise just preserve the line breaks the user typed / pasted.
   return escHtml(raw).replace(/\n/g, '<br>');
 }
@@ -760,6 +780,24 @@ async function renderDashboard() {
     corp = { entries:0, auditPending:0, auditedApproved:0, totalClaimValue:0, statusBreakdown:{} };
   }
 
+  // PENDING-COUNT ACCURACY: the backend's aggregate fields (pendingVerification,
+  // pendingAudit, pendingPayment) only count the single "base" status (e.g. just
+  // "Pending Verification"), but each pending tab's actual list also includes
+  // "Under Verification/Audit", "Query Raised" and "Waiting for Accounts Reply"
+  // requests. That mismatch is what made the sidebar badge (e.g. "1") disagree
+  // with the "N requests" count shown once you open the tab (e.g. "3"). Fix it
+  // by summing the exact per-status counts from statusBreakdown using the same
+  // status list each tab filters on, so the badge always matches the list.
+  const sumStatusCounts = (breakdown, statuses) =>
+    statuses.reduce((sum, s) => sum + ((breakdown && breakdown[s]) || 0), 0);
+
+  const verificationPendingCount = sumStatusCounts(d.statusBreakdown,
+    ['Pending Verification', 'Under Verification', 'Query Raised', 'Waiting for Accounts Reply']);
+  const auditPendingCount = sumStatusCounts(d.statusBreakdown,
+    ['Pending Commercial Audit', 'Under Audit', 'Query Raised', 'Waiting for Accounts Reply']);
+  const paymentPendingCount = sumStatusCounts(d.statusBreakdown,
+    ['Audit Completed', 'Pending Payment']);
+
   // PENDING APPROVAL COUNT: getDashboard doesn't return a dedicated
   // pendingApproval field (only Verification/Audit/Payment are aggregated
   // server-side), so fall back to reading it out of the status breakdown,
@@ -769,21 +807,21 @@ async function renderDashboard() {
     : ((d.statusBreakdown && d.statusBreakdown['Pending Approval']) || 0);
 
   // Reflect current pending counts as badges on the sidebar tabs.
-  setNavBadge('pendingVerification', d.pendingVerification);
-  setNavBadge('pendingAudit', d.pendingAudit);
+  setNavBadge('pendingVerification', verificationPendingCount);
+  setNavBadge('pendingAudit', auditPendingCount);
   setNavBadge('pendingApproval', pendingApprovalCount);
-  setNavBadge('pendingPayment', d.pendingPayment);
-  setNavBadge('verificationPendingTab', d.pendingVerification);
-  setNavBadge('auditPendingTab', d.pendingAudit);
+  setNavBadge('pendingPayment', paymentPendingCount);
+  setNavBadge('verificationPendingTab', verificationPendingCount);
+  setNavBadge('auditPendingTab', auditPendingCount);
   setNavBadge('approvalPendingTab', pendingApprovalCount);
-  setNavBadge('paymentPendingTab', d.pendingPayment);
+  setNavBadge('paymentPendingTab', paymentPendingCount);
   setNavBadge('corporateCardDashboard', corp.auditPending);
 
   const cards = [
     { label:'Total Requests', value:d.totalRequests, grad:'grad-purple', icon:'list' },
-    { label:'Pending Verification', value:d.pendingVerification, grad:'grad-blue', icon:'check' },
-    { label:'Pending Audit', value:d.pendingAudit, grad:'grad-orange', icon:'check' },
-    { label:'Pending Payment', value:d.pendingPayment, grad:'grad-blue', icon:'cash' },
+    { label:'Pending Verification', value:verificationPendingCount, grad:'grad-blue', icon:'check' },
+    { label:'Pending Audit', value:auditPendingCount, grad:'grad-orange', icon:'check' },
+    { label:'Pending Payment', value:paymentPendingCount, grad:'grad-blue', icon:'cash' },
     { label:'Completed', value:d.completed, grad:'grad-green', icon:'check' },
     { label:'Returned', value:d.returned, grad:'grad-red', icon:'list' },
   ];
