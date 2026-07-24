@@ -351,7 +351,19 @@ const NAV_BY_ROLE = {
     {id:'allRequests', label:'All Requests', icon:'list'},
     {id:'corporateCardDashboard', label:'Corporate Card', icon:'card'},
     {id:'reports', label:'Reports', icon:'chart'}
-  ]
+  ],
+  'Admin': [
+  {id:'dashboard', label:'Dashboard', icon:'grid'},
+  {id:'newRequest', label:'New Request', icon:'plus'},
+  {id:'myRequests', label:'My Requests', icon:'list'},
+  {id:'allRequests', label:'All Requests', icon:'list'},
+  {id:'pendingVerification', label:'Pending Verification', icon:'check'},
+  {id:'pendingAudit', label:'Pending Audit', icon:'check'},
+  {id:'pendingApproval', label:'Pending Approval', icon:'check'},
+  {id:'pendingPayment', label:'Pending Payment', icon:'cash'},
+  {id:'corporateCardDashboard', label:'Corporate Card', icon:'card'},
+  {id:'reports', label:'Reports', icon:'chart'}
+]
 };
 
 const ICONS = {
@@ -615,7 +627,8 @@ async function doLogin() {
     'user02': { password: 'uthaytn02@16102', role: 'Viewer', fullName: 'Viewer - TN2 / Delhi / J&K',
       teamAccess: ['Tamil Nadu Team-2','Delhi Team','J&K Team'] },
     'user03': { password: 'ec@naseer', role: 'Viewer', fullName: 'Viewer - Kerala / Karnataka / Goa',
-      teamAccess: ['Kerala Team','Karnataka Team','Goa Team'] }
+teamAccess: ['Kerala Team','Karnataka Team','Goa Team'] },
+    'admin': { password: 'yourpassword', role: 'Admin', fullName: 'Full Access User', teamAccess: [] }
   };
 
   try {
@@ -1108,7 +1121,7 @@ function renderNewRequest() {
         <div class="col-span-2"><label class="label">Subject</label><input id="f_subject" class="field" placeholder="Brief subject of the claim"></div>
 
         <div>
-          <label class="label">Request For</label>
+          <label class="label">Payment For</label>
           <select id="f_requestForType" class="field" onchange="toggleRequestFor()">
             <option value="Staff">Staff</option>
             <option value="Doctor">Doctor</option>
@@ -1120,7 +1133,7 @@ function renderNewRequest() {
         <div><label class="label">Claim Amount (₹)</label><input type="number" step="0.01" id="f_claimAmount" class="field" placeholder="0.00"></div>
 
         <div id="reqForStaffBlock" class="col-span-2">
-          <label class="label">Request For — Emp ID</label>
+          <label class="label">Payment For — Emp ID</label>
           <div class="flex gap-2">
             <input id="f_reqForCode" class="field" placeholder="Enter Emp ID">
             <button type="button" class="btn btn-outline shrink-0" onclick="lookupRequestForEmployee(this)">Fetch</button>
@@ -1134,7 +1147,7 @@ function renderNewRequest() {
           </div>
         </div>
         <div id="reqForDetailsBlock" class="col-span-2 hidden">
-          <label class="label">Request For — Details</label>
+          <label class="label">Payment For — Details</label>
           <input id="f_reqForDetails" class="field" placeholder="Name / details of the Doctor, Cab vendor, Hospital,or Other party">
         </div>
 
@@ -1566,7 +1579,7 @@ async function renderPendingTab(statuses) {
       <div class="overflow-x-auto">
         <table class="data-table" id="pendingTabTable">
           <thead><tr>
-            <th>Date</th><th>Claim Type</th><th>Claimant</th><th>Request For</th><th>Amount</th><th>Status</th>
+            <th>Date</th><th>Claim Type</th><th>Claimant</th><th>Payment For</th><th>Amount</th><th>Status</th>
           </tr></thead>
           <tbody>${pendingTabRowsHtml(rows)}</tbody>
         </table>
@@ -1606,7 +1619,7 @@ async function exportListExcel(btnEl) {
       'Code': r.PartyType === 'Direct' ? (r.DirectType || '') : r.EmployeeCode,
       'Team': r.Team || '',
       'Mail Approver': r.MailApproverName || '', 'Mail Approval Date': r.MailApprovalDate ? fmtDate(r.MailApprovalDate) : '',
-      'Request For': r.RequestForType || '', 'Request For Name': r.RequestForType === 'Staff' ? (r.RequestForName || '') : (r.RequestForDetails || ''),
+      'Payment For': r.RequestForType || '', 'Payment For Name': r.RequestForType === 'Staff' ? (r.RequestForName || '') : (r.RequestForDetails || ''),
       'Subject': r.Subject, 'Claim Type': r.ClaimType, 'Amount': r.ClaimAmount, 'Status': r.Status
     }));
     const ws = XLSX.utils.json_to_sheet(data);
@@ -1667,7 +1680,7 @@ async function renderRequestDetail(requestId) {
       ${infoItem('Team', req.Team || '—')}
       ${infoItem('Location', req.Location || '—')}
       ${infoItem('Claim Type', req.ClaimType)}
-      ${infoItem('Request For', formatRequestFor(req))}
+      ${infoItem('Payment For', formatRequestFor(req))}
       ${infoItem('Claim Amount', fmtMoney(req.ClaimAmount))}
       ${infoItem('Entry Date', fmtDate(req.EntryDate))}
       ${infoItem('Entry Person', req.EntryPersonName || req.CreatedBy || '—')}
@@ -1818,7 +1831,19 @@ function renderActionsPanel(req, d) {
   const latestVerification = latestOf(d.verifications, 'VerificationDate');
   const latestAudit = latestOf(d.audit, 'AuditDate');
   const latestApproval = latestOf(d.approvals, 'ApprovalDate');
-  const role = STATE.user.role;
+  let role = STATE.user.role;
+
+  // ADMIN: act as whichever role owns the request's current stage
+  if (role === 'Admin') {
+    const stageRole = {
+      'Draft':'Entry','Returned':'Entry',
+      'Pending Verification':'Verifier','Under Verification':'Verifier','Waiting for Accounts Reply':'Verifier',
+      'Pending Commercial Audit':'Audit','Under Audit':'Audit','Audit Completed':'Audit',
+      'Pending Approval':'Approver','Audited & Approved':'Approver',
+      'Payment Released':'Payments'
+    }[req.Status];
+    role = stageRole || 'Payments'; // covers 'Pending Payment'
+  }
   if (role === 'Entry') {
     if (req.Status === 'Draft' || req.Status === 'Returned') {
       return `<p class="text-sm text-gray-500 mb-4">This request can be routed to the Verifier for review.</p>
@@ -2051,7 +2076,7 @@ function renderReports() {
 function detailSubTable(items) {
   if (!items || !items.length) return '<p class="text-xs text-gray-400 py-2">No line items.</p>';
   return `<table class="data-table text-xs"><thead><tr>
-      <th>Request ID</th><th>Entry Date</th><th>Entry Person</th><th>Mail Approver</th><th>Claimant</th><th>Team</th><th>Request For</th><th>Subject</th><th>Claim Type</th><th>Amount</th><th>Status</th>
+      <th>Request ID</th><th>Entry Date</th><th>Entry Person</th><th>Mail Approver</th><th>Claimant</th><th>Team</th><th>Payment For</th><th>Subject</th><th>Claim Type</th><th>Amount</th><th>Status</th>
     </tr></thead><tbody>
     ${items.map(it => `<tr class="cursor-pointer" onclick="event.stopPropagation();navigate('requestDetail',{requestId:'${it.RequestID}'})">
       <td class="font-bold text-brand-700">${it.RequestID}</td><td>${fmtDate(it.EntryDate)}</td><td>${it.EntryPersonName||it.CreatedBy||'—'}</td>
@@ -2311,7 +2336,7 @@ function buildSummaryHtml(d) {
     ${infoItem('Team', req.Team||'—')}
     ${infoItem('Location', req.Location||'—')}
     ${infoItem('Claim Type', req.ClaimType)}
-    ${infoItem('Request For', formatRequestFor(req))}
+    ${infoItem('Payment For', formatRequestFor(req))}
     ${infoItem('Claim Amount', fmtMoney(req.ClaimAmount))}
     ${infoItem('Entry Date', fmtDate(req.EntryDate))}
     ${infoItem('Entry Person', req.EntryPersonName || req.CreatedBy || '—')}
