@@ -998,7 +998,8 @@ async function renderCorporateCardDashboard() {
     ${dateFilterBarHtml('corpCard', 'renderCorporateCardDashboard()')}
     <div class="card p-4 mb-6 flex items-start gap-3" style="background:linear-gradient(135deg,#ede9fe,#f5f3ff);">
       <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-brand-700 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${ICONS.card}</svg>
-      <p class="text-sm text-brand-800"> <b> ICICI CORPORATE CARD </b> </div>
+      <p class="text-sm text-brand-800"><b>CORPORATE CARD</b>
+    </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
       ${cards.map(cd => `
         <div class="card p-5 relative overflow-hidden">
@@ -2248,29 +2249,185 @@ function formatRowDatesForExport(row) {
   return out;
 }
 
-// Builds a workbook that's a genuine detailed register: for group/month
-// reports it writes a "Summary" sheet (name/count/total) plus a "Detail"
-// sheet with every underlying request line item; for row-level report
-// types (pending lists, audit/payment registers) it exports the full set
-// of columns already returned by the backend, not a trimmed-down view.
+/* ---------------------------------------------------------
+   REPORT EXCEL EXPORT CONFIG
+   BUG FIX: the previous exportReportExcel() checked
+   `data.some(r => Array.isArray(r.items))` to decide whether to build a
+   Summary + Detail workbook — but STATE._reportData always holds the RAW
+   FLAT rows returned by the backend (grouping into {name,count,total,items}
+   only ever happened in a local variable inside loadReport(), for on-screen
+   display only). r.items was therefore always undefined, so the "grouped"
+   branch never actually ran and every export — regardless of report type —
+   fell through to a single flat sheet.
+   This config drives a genuine two-sheet workbook (Sheet 1 = Summary,
+   Sheet 2 = Detail) for every report type, built directly from the same
+   raw rows the on-screen tables use, so Summary always matches Detail. ----- */
+const REPORT_EXPORT_CONFIG = {
+  'employee-wise': {
+    summaryLabel: 'Employee', groupBy: r => r.ClaimantName || '(No name)', amountField: 'ClaimAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Entry Date','EntryDate'],['Entry Person', r=>r.EntryPersonName||r.CreatedBy||''],
+      ['Claimant','ClaimantName'],['Team','Team'],['Payment For','RequestForName'],['Subject','Subject'],
+      ['Claim Type','ClaimType'],['Amount','ClaimAmount'],['Status','Status']
+    ]
+  },
+  'party-wise': {
+    summaryLabel: 'Department', groupBy: r => r.Department || '(No department)', amountField: 'ClaimAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Entry Date','EntryDate'],['Department','Department'],['Claimant','ClaimantName'],
+      ['Team','Team'],['Subject','Subject'],['Claim Type','ClaimType'],['Amount','ClaimAmount'],['Status','Status']
+    ]
+  },
+  'team-wise': {
+    summaryLabel: 'Team', groupBy: r => r.Team || '(No team)', amountField: 'ClaimAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Entry Date','EntryDate'],['Team','Team'],['Claimant','ClaimantName'],
+      ['Subject','Subject'],['Claim Type','ClaimType'],['Amount','ClaimAmount'],['Status','Status']
+    ]
+  },
+  'claim-type-wise': {
+    summaryLabel: 'Claim Type', groupBy: r => r.ClaimType || '(No claim type)', amountField: 'ClaimAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Entry Date','EntryDate'],['Claim Type','ClaimType'],['Claimant','ClaimantName'],
+      ['Team','Team'],['Subject','Subject'],['Amount','ClaimAmount'],['Status','Status']
+    ]
+  },
+  'monthly-summary': {
+    summaryLabel: 'Month', groupBy: r => r.Month || '(No month)', amountField: 'ClaimAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Month', r=>r.Month||''],['Entry Date','EntryDate'],['Claimant','ClaimantName'],
+      ['Team','Team'],['Claim Type','ClaimType'],['Amount','ClaimAmount'],['Status','Status']
+    ]
+  },
+  'pending-verification': {
+    summaryLabel: 'Status', groupBy: r => r.Status || '(No status)', amountField: 'ClaimAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Entry Date','EntryDate'],['Entry Person', r=>r.EntryPersonName||r.CreatedBy||''],
+      ['Claimant','ClaimantName'],['Team','Team'],['Claim Type','ClaimType'],['Amount','ClaimAmount'],['Status','Status']
+    ]
+  },
+  'pending-audit': {
+    summaryLabel: 'Status', groupBy: r => r.Status || '(No status)', amountField: 'ClaimAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Entry Date','EntryDate'],['Entry Person', r=>r.EntryPersonName||r.CreatedBy||''],
+      ['Claimant','ClaimantName'],['Team','Team'],['Claim Type','ClaimType'],['Amount','ClaimAmount'],['Status','Status']
+    ]
+  },
+  'pending-payment': {
+    summaryLabel: 'Status', groupBy: r => r.Status || '(No status)', amountField: 'ClaimAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Entry Date','EntryDate'],['Entry Person', r=>r.EntryPersonName||r.CreatedBy||''],
+      ['Claimant','ClaimantName'],['Team','Team'],['Claim Type','ClaimType'],['Amount','ClaimAmount'],['Status','Status']
+    ]
+  },
+  'completed': {
+    summaryLabel: 'Status', groupBy: r => r.Status || '(No status)', amountField: 'ClaimAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Entry Date','EntryDate'],['Entry Person', r=>r.EntryPersonName||r.CreatedBy||''],
+      ['Claimant','ClaimantName'],['Team','Team'],['Claim Type','ClaimType'],['Amount','ClaimAmount'],['Status','Status']
+    ]
+  },
+  'verification-register': {
+    summaryLabel: 'Verification Action', groupBy: r => r.VerificationAction || '(No action)', amountField: 'VerifiedAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Verification Date','VerificationDate'],['Claimant','ClaimantName'],['Team','Team'],
+      ['Verified By','VerifiedBy'],['Verified Amount','VerifiedAmount'],['Action','VerificationAction']
+    ]
+  },
+  'audit-register': {
+    summaryLabel: 'Audit Action', groupBy: r => r.AuditAction || '(No action)', amountField: 'AuditedAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Audit Date','AuditDate'],['Claimant','ClaimantName'],['Team','Team'],
+      ['Audited By','AuditedBy'],['Audited Amount','AuditedAmount'],['Action','AuditAction']
+    ]
+  },
+  'payment-register': {
+    summaryLabel: 'Payment Mode', groupBy: r => r.PaymentMode || '(No mode)', amountField: 'PaidAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Payment Date','PaymentDate'],['Claimant','ClaimantName'],['Team','Team'],
+      ['Mode','PaymentMode'],['UTR / Txn No','UTRNo'],['Paid Amount','PaidAmount']
+    ]
+  },
+  'corporate-card-register': {
+    summaryLabel: 'Status', groupBy: r => r.Status || '(No status)', amountField: 'ClaimAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Entry Date','EntryDate'],['Employee Name','ClaimantName'],['Employee Code','ClaimantCode'],
+      ['Department','Department'],['Team','Team'],['Subject','Subject'],['Claim Type','ClaimType'],
+      ['Claim Amount','ClaimAmount'],['Verified Amount','VerifiedAmount'],['Audited Amount','AuditedAmount'],
+      ['Approved Amount','ApprovedAmount'],['Approved By','ApprovedBy'],['Status','Status']
+    ]
+  }
+};
+
+function reportGroupLabel_(type) {
+  const cfg = REPORT_EXPORT_CONFIG[type];
+  return (cfg && cfg.summaryLabel) || 'Group';
+}
+
+// Builds { Summary: [...], Detail: [...] } for the given report type from
+// the raw flat rows in `data`, using REPORT_EXPORT_CONFIG so every report
+// type gets a summary tailored to what it's actually reporting on (e.g.
+// "Verification Action" counts for the Verification Register, "Payment
+// Mode" totals for the Payment Register) instead of a generic dump.
+function buildReportExportSheets_(type, data) {
+  const cfg = REPORT_EXPORT_CONFIG[type];
+  if (!cfg) {
+    // Fallback: no config for this type — export whatever raw fields exist.
+    return { summaryRows: [], detailRows: data.map(formatRowDatesForExport), summaryLabel: 'Group' };
+  }
+  const groups = {};
+  const order = [];
+  data.forEach(r => {
+    const key = cfg.groupBy(r) || '(Blank)';
+    if (!groups[key]) { groups[key] = { count: 0, total: 0 }; order.push(key); }
+    groups[key].count += 1;
+    groups[key].total += Number(r[cfg.amountField]) || 0;
+  });
+  const summaryRows = order.map(key => ({
+    [cfg.summaryLabel]: key,
+    'Request Count': groups[key].count,
+    ['Total ' + (cfg.amountField === 'ClaimAmount' ? 'Claim Amount' : cfg.amountField.replace(/([A-Z])/g,' $1').trim())]: groups[key].total
+  }));
+  // Grand total row for quick reference at the bottom of the summary sheet.
+  const grandTotal = order.reduce((s,k)=>s+groups[k].total,0);
+  const grandCount = order.reduce((s,k)=>s+groups[k].count,0);
+  summaryRows.push({
+    [cfg.summaryLabel]: 'TOTAL',
+    'Request Count': grandCount,
+    ['Total ' + (cfg.amountField === 'ClaimAmount' ? 'Claim Amount' : cfg.amountField.replace(/([A-Z])/g,' $1').trim())]: grandTotal
+  });
+
+  const detailRows = data.map(r => {
+    const formatted = formatRowDatesForExport(r);
+    const out = {};
+    cfg.detailColumns.forEach(([header, keyOrFn]) => {
+      out[header] = typeof keyOrFn === 'function' ? keyOrFn(r) : formatted[keyOrFn];
+    });
+    return out;
+  });
+
+  return { summaryRows, detailRows, summaryLabel: cfg.summaryLabel };
+}
+
+// Exports a genuine two-sheet workbook — "Summary" (grouped counts/totals
+// appropriate to the selected report type) followed by "Detail" (every
+// underlying row for that same report type, in the columns shown on
+// screen). This replaces the old logic that silently fell back to a single
+// flat sheet for every report type due to the r.items bug described above.
 function exportReportExcel(btnEl) {
   const data = STATE._reportData || [];
+  const type = STATE._reportType || 'employee-wise';
   if (!data.length) { toast('Nothing to export.', 'error'); return; }
   withButtonLoading(btnEl, async () => {
     try { await ensureExcelLib(); } catch (e) { toast(e.message, 'error'); return; }
+    const { summaryRows, detailRows } = buildReportExportSheets_(type, data);
     const wb = XLSX.utils.book_new();
-    const hasItems = data.some(r => Array.isArray(r.items));
-    if (hasItems) {
-      const summaryRows = data.map(r => ({ Name: r.name || r.month, 'Request Count': r.count, 'Total Amount': r.total }));
+    if (summaryRows.length) {
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryRows), 'Summary');
-      const detailRows = [];
-      data.forEach(group => (group.items || []).forEach(item => detailRows.push(Object.assign({ Group: group.name || group.month }, formatRowDatesForExport(item)))));
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows), 'Detail');
-    } else {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data.map(formatRowDatesForExport)), STATE._reportType.slice(0,31));
     }
-    XLSX.writeFile(wb, 'Report_' + STATE._reportType + '.xlsx');
-    toast('Detailed report downloaded.');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows), 'Detail');
+    XLSX.writeFile(wb, 'Report_' + type + '.xlsx');
+    toast('Report downloaded — Summary + Detail sheets.');
   });
 }
 
