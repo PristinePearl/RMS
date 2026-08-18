@@ -1251,8 +1251,7 @@ function handleFileSelect(evt, category) {
     reader.readAsDataURL(f);
   }));
   Promise.all(readers).then(results => {
-    if (category === 'Attachment') STATE.pendingFiles.Attachment.push(...results);
-    else STATE.pendingFiles[category] = results;
+    STATE.pendingFiles[category].push(...results);
     renderFileList(category);
   });
 }
@@ -1268,8 +1267,7 @@ function renderFileList(category) {
     </div>`).join('');
 }
 function removeFile(category, idx) {
-  if (category === 'Attachment') STATE.pendingFiles.Attachment.splice(idx, 1);
-  else STATE.pendingFiles[category] = [];
+  STATE.pendingFiles[category].splice(idx, 1);
   renderFileList(category);
 }
 
@@ -1784,9 +1782,12 @@ function renderDetailTab(tab, d) {
         <p class="text-sm mb-2">${q.QueryText}</p>
         ${q.ResponseText ? `<div class="bg-gray-50 rounded-lg p-3 mt-2"><p class="text-xs font-bold text-gray-500 mb-1">Response by ${q.RespondedBy} · ${fmtDateTime(q.RespondedAt)}</p><p class="text-sm">${q.ResponseText}</p></div>` : ''}
         ${(q.Status === 'Open' && STATE.user.role === 'Entry') ? `
-          <div class="mt-3 flex gap-2">
-            <input class="field" id="queryResp_${q.QueryID}" placeholder="Type your response...">
-            <button class="btn btn-primary shrink-0" onclick="submitQueryResponse(this,'${q.QueryID}')">Respond</button>
+          <div class="mt-3">
+            <div class="flex gap-2 mb-2">
+              <input class="field" id="queryResp_${q.QueryID}" placeholder="Type your response...">
+              <button class="btn btn-primary shrink-0" onclick="submitQueryResponse(this,'${q.QueryID}')">Respond</button>
+            </div>
+            ${additionalAttachmentZone('q_' + q.QueryID)}
           </div>` : ''}
       </div>`).join('') : '<p class="text-gray-400 text-sm">No queries raised.</p>';
   }
@@ -1808,11 +1809,21 @@ function renderDetailTab(tab, d) {
 
 async function submitQueryResponse(btnEl, queryId) {
   const text = document.getElementById('queryResp_' + queryId).value.trim();
-  if (!text) return;
+  if (!text) { toast('Please type a response.', 'error'); return; }
   await withButtonLoading(btnEl, async () => {
     try {
+      // Upload any attachments for this query first (all three categories)
+      const qSlotId = 'q_' + queryId;
+      const allFiles = EXTRA_CATS.flatMap(c => STATE.pendingFiles[_extraSlotKey(qSlotId, c.key)] || []);
+      if (allFiles.length) {
+        const upRes = await api('uploadAttachments', { requestId: STATE.currentDetailId, uploadedBy: STATE.user.username, files: allFiles });
+        if (upRes.failed && upRes.failed.length) {
+          toast(upRes.failed.length + ' attachment(s) failed to upload.', 'error');
+        }
+        EXTRA_CATS.forEach(c => { STATE.pendingFiles[_extraSlotKey(qSlotId, c.key)] = []; });
+      }
       await api('respondQuery', { queryId, responseText: text, respondedBy: STATE.user.username });
-      toast('Response submitted.');
+      toast('Response submitted' + (allFiles.length ? ' with ' + allFiles.length + ' attachment(s).' : '.'));
       renderRequestDetail(STATE.currentDetailId);
     } catch (e) { toast(e.message, 'error'); }
   });
@@ -1846,9 +1857,32 @@ function renderActionsPanel(req, d) {
     role = stageRole || 'Payments'; // covers 'Pending Payment'
   }
   if (role === 'Entry') {
-    if (req.Status === 'Draft' || req.Status === 'Returned') {
+    if (req.Status === 'Draft') {
       return `<p class="text-sm text-gray-500 mb-4">This request can be routed to the Verifier for review.</p>
         <button class="btn btn-primary" onclick="doSendToVerifier(this,'${req.RequestID}')">Send to Verifier</button>`;
+    }
+    if (req.Status === 'Returned') {
+      return `
+        <div class="p-4 mb-4 rounded-xl border border-red-200 bg-red-50">
+          <p class="text-sm font-bold text-red-700 mb-1">⚠ This request was returned.</p>
+          <p class="text-xs text-red-500">Review the remarks above, attach any missing documents, then re-send to Verifier.</p>
+        </div>
+        ${additionalAttachmentZone('action')}
+        <div class="flex flex-wrap gap-3 mt-4">
+          <button class="btn btn-outline flex-1 sm:flex-none" onclick="doUploadOnlyThenRefresh(this,'${req.RequestID}')">Upload Attachments Only</button>
+          <button class="btn btn-primary flex-1 sm:flex-none" onclick="doUploadThenSendToVerifier(this,'${req.RequestID}')">Upload & Send to Verifier</button>
+        </div>`;
+    }
+    if (req.Status === 'Query Raised' || req.Status === 'Waiting for Accounts Reply') {
+      return `
+        <div class="p-4 mb-4 rounded-xl border border-amber-200 bg-amber-50">
+          <p class="text-sm font-bold text-amber-700 mb-1">📋 A query has been raised on this request.</p>
+          <p class="text-xs text-amber-600">Respond to the query in the <strong>Queries</strong> tab. You can also attach supporting documents below.</p>
+        </div>
+        ${additionalAttachmentZone('action')}
+        <div class="mt-4">
+          <button class="btn btn-primary" onclick="doUploadOnlyThenRefresh(this,'${req.RequestID}')">Upload Attachments</button>
+        </div>`;
     }
     return `<p class="text-sm text-gray-400">No entry actions available at the current status (${req.Status}). Check the Queries tab if a response is required.</p>`;
   }
@@ -1950,10 +1984,121 @@ function renderActionsPanel(req, d) {
   return '';
 }
 
+/* =========================================================
+   ADDITIONAL ATTACHMENT UPLOAD (Returned / Query Raised)
+   Used from the Actions panel and from the Query response area.
+   `slotId` is a unique string (e.g. 'action' or a queryId) that
+   namespaces the pending file list so both panels can coexist.
+========================================================= */
+// The three upload categories, matching the New Request form.
+const EXTRA_CATS = [
+  { key: 'Attachment',   label: 'Attachment',    multiple: true  },
+  { key: 'SponsorSheet', label: 'Sponsor Sheet',  multiple: false },
+  { key: 'MailPDF',      label: 'Mail PDF',       multiple: false }
+];
+
+function _extraSlotKey(slotId, cat) { return 'extra_' + slotId + '_' + cat; }
+
+function additionalAttachmentZone(slotId) {
+  // Initialise all three category slots
+  EXTRA_CATS.forEach(c => {
+    const k = _extraSlotKey(slotId, c.key);
+    if (!STATE.pendingFiles[k]) STATE.pendingFiles[k] = [];
+  });
+
+  const uploadIcon = `<svg class="w-5 h-5 text-brand-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>`;
+
+  const cols = EXTRA_CATS.map(c => `
+    <div>
+      <label class="label">${c.label}</label>
+      <label class="flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-xl py-4 cursor-pointer hover:border-brand-400 hover:bg-brand-50/40 transition">
+        ${uploadIcon}
+        <span class="text-xs text-gray-500 font-semibold">Click to upload</span>
+        <input type="file" class="hidden" ${c.multiple ? 'multiple' : ''} onchange="handleExtraFileSelect(event,'${slotId}','${c.key}')">
+      </label>
+      <div id="extraFileList_${slotId}_${c.key}" class="mt-2 space-y-1"></div>
+    </div>`).join('');
+
+  return `<div class="mt-4 pt-4 border-t border-gray-100">
+    <p class="label mb-3">Add Attachments</p>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">${cols}</div>
+  </div>`;
+}
+
+function handleExtraFileSelect(evt, slotId, cat) {
+  const key = _extraSlotKey(slotId, cat);
+  if (!STATE.pendingFiles[key]) STATE.pendingFiles[key] = [];
+  const files = Array.from(evt.target.files);
+  const readers = files.map(f => new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: f.name, mimeType: f.type || 'application/octet-stream', base64: reader.result.split(',')[1], category: cat });
+    reader.readAsDataURL(f);
+  }));
+  Promise.all(readers).then(results => {
+    // Attachment is multi; SponsorSheet & MailPDF replace
+    if (cat === 'Attachment') STATE.pendingFiles[key].push(...results);
+    else STATE.pendingFiles[key] = results;
+    renderExtraFileList(slotId, cat);
+  });
+}
+
+function renderExtraFileList(slotId, cat) {
+  const key = _extraSlotKey(slotId, cat);
+  const list = STATE.pendingFiles[key] || [];
+  const el = document.getElementById('extraFileList_' + slotId + '_' + cat);
+  if (!el) return;
+  el.innerHTML = list.map((f, i) => `
+    <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-1.5 text-xs">
+      <span class="truncate">${f.name}</span>
+      <button onclick="removeExtraFile('${slotId}','${cat}',${i})" class="text-red-400 hover:text-red-600 font-bold ml-2">✕</button>
+    </div>`).join('');
+}
+
+function removeExtraFile(slotId, cat, idx) {
+  const key = _extraSlotKey(slotId, cat);
+  if (!STATE.pendingFiles[key]) return;
+  if (cat === 'Attachment') STATE.pendingFiles[key].splice(idx, 1);
+  else STATE.pendingFiles[key] = [];
+  renderExtraFileList(slotId, cat);
+}
+
+async function uploadExtraFiles(slotId, requestId) {
+  const allFiles = EXTRA_CATS.flatMap(c => STATE.pendingFiles[_extraSlotKey(slotId, c.key)] || []);
+  if (!allFiles.length) return;
+  const res = await api('uploadAttachments', { requestId, uploadedBy: STATE.user.username, files: allFiles });
+  if (res.failed && res.failed.length) {
+    toast(res.failed.length + ' file(s) failed: ' + res.failed.map(f => f.name).join(', '), 'error');
+  } else {
+    toast(allFiles.length + ' file(s) uploaded.');
+  }
+  // Clear all slots
+  EXTRA_CATS.forEach(c => { STATE.pendingFiles[_extraSlotKey(slotId, c.key)] = []; });
+}
+
 async function doSendToVerifier(btnEl, requestId) {
   await withButtonLoading(btnEl, async () => {
     try { await api('sendToVerifier', { requestId, userBy: STATE.user.username }); toast('Sent to Verifier.'); renderRequestDetail(requestId); }
     catch (e) { toast(e.message, 'error'); }
+  });
+}
+
+async function doUploadOnlyThenRefresh(btnEl, requestId) {
+  await withButtonLoading(btnEl, async () => {
+    try {
+      await uploadExtraFiles('action', requestId);
+      renderRequestDetail(requestId);
+    } catch (e) { toast(e.message, 'error'); }
+  });
+}
+
+async function doUploadThenSendToVerifier(btnEl, requestId) {
+  await withButtonLoading(btnEl, async () => {
+    try {
+      await uploadExtraFiles('action', requestId);
+      await api('sendToVerifier', { requestId, userBy: STATE.user.username });
+      toast('Attachments uploaded & sent to Verifier.');
+      renderRequestDetail(requestId);
+    } catch (e) { toast(e.message, 'error'); }
   });
 }
 async function doVerify(btnEl, requestId, action) {
