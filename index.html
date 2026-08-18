@@ -77,7 +77,7 @@
   .sidebar-link.active{background:rgba(255,255,255,.18);color:#fff;}
   .nav-badge{margin-left:auto;background:#f87171;color:#fff;font-size:.66rem;font-weight:800;line-height:1;padding:.24rem .45rem;border-radius:999px;min-width:18px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.15);}
   .nav-badge.hidden{display:none;}
-  .status-pill{display:inline-flex;align-items:center;gap:.35rem;padding:.28rem .7rem;border-radius:999px;font-size:.72rem;font-weight:700;white-space:nowrap;}
+  .status-pill{display:inline-flex;align-items:center;gap:.38rem;padding:.28rem .75rem;border-radius:999px;font-size:.72rem;font-weight:700;white-space:nowrap;letter-spacing:.01em;}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;font-weight:700;font-size:.85rem;border-radius:12px;padding:.6rem 1.1rem;transition:.15s;cursor:pointer;}
   .btn-primary{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;box-shadow:0 6px 16px -4px rgba(79,70,229,.5);}
   .btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px);}
@@ -289,20 +289,20 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbwg09P5UvFFMa5zMyHV4CNh
 const MANPOWER_API_URL = 'https://script.google.com/macros/s/AKfycbxdOs22qKMLlf-0PCOjb4KHBXW2WtHaWKclaSFW5vRVxfk87d3PltASdbRGcVDi_yabSw/exec';
 
 const STATUS_COLORS = {
-  'Draft':'bg-gray-100 text-gray-600',
-  'Pending Verification':'bg-fuchsia-100 text-fuchsia-700',
-  'Under Verification':'bg-sky-100 text-sky-700',
-  'Pending Commercial Audit':'bg-amber-100 text-amber-700',
-  'Under Audit':'bg-blue-100 text-blue-700',
-  'Query Raised':'bg-red-100 text-red-700',
-  'Waiting for Accounts Reply':'bg-orange-100 text-orange-700',
-  'Audit Completed':'bg-indigo-100 text-indigo-700',
-  'Pending Approval':'bg-cyan-100 text-cyan-700',
-  'Pending Payment':'bg-purple-100 text-purple-700',
-  'Payment Released':'bg-teal-100 text-teal-700',
-  'Completed':'bg-emerald-100 text-emerald-700',
-  'Returned':'bg-rose-100 text-rose-700',
-  'Audited & Approved':'bg-violet-100 text-violet-700'
+  'Draft':                      { bg:'#f1f5f9', color:'#475569', dot:'#94a3b8', border:'#cbd5e1' },
+  'Pending Verification':       { bg:'#fdf4ff', color:'#a21caf', dot:'#d946ef', border:'#f0abfc' },
+  'Under Verification':         { bg:'#f0f9ff', color:'#0369a1', dot:'#0ea5e9', border:'#7dd3fc' },
+  'Pending Commercial Audit':   { bg:'#fffbeb', color:'#b45309', dot:'#f59e0b', border:'#fcd34d' },
+  'Under Audit':                { bg:'#eff6ff', color:'#1d4ed8', dot:'#3b82f6', border:'#93c5fd' },
+  'Query Raised':               { bg:'#fff1f2', color:'#be123c', dot:'#f43f5e', border:'#fda4af' },
+  'Waiting for Accounts Reply': { bg:'#fff7ed', color:'#c2410c', dot:'#f97316', border:'#fdba74' },
+  'Audit Completed':            { bg:'#eef2ff', color:'#4338ca', dot:'#6366f1', border:'#a5b4fc' },
+  'Pending Approval':           { bg:'#ecfeff', color:'#0e7490', dot:'#06b6d4', border:'#67e8f9' },
+  'Pending Payment':            { bg:'#fef9c3', color:'#854d0e', dot:'#eab308', border:'#fde047' },
+  'Payment Released':           { bg:'#f0fdfa', color:'#0f766e', dot:'#14b8a6', border:'#5eead4' },
+  'Completed':                  { bg:'#f7fee7', color:'#3f6212', dot:'#84cc16', border:'#bef264' },
+  'Returned':                   { bg:'#fff1f2', color:'#9f1239', dot:'#fb7185', border:'#fecdd3' },
+  'Audited & Approved':         { bg:'#ecfdf5', color:'#065f46', dot:'#059669', border:'#6ee7b7' }
 };
 
 const NAV_BY_ROLE = {
@@ -513,8 +513,8 @@ function fmtDateTime(d) {
   return dt.toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
 }
 function statusPill(status) {
-  const cls = STATUS_COLORS[status] || 'bg-gray-100 text-gray-600';
-  return `<span class="status-pill ${cls}">${status}</span>`;
+  const c = STATUS_COLORS[status] || { bg:'#f1f5f9', color:'#475569', dot:'#94a3b8', border:'#cbd5e1' };
+  return `<span class="status-pill" style="background:${c.bg};color:${c.color};border:1.5px solid ${c.border};"><span style="width:7px;height:7px;border-radius:50%;background:${c.dot};display:inline-block;flex-shrink:0;"></span>${status}</span>`;
 }
 // Escapes text for safe HTML insertion.
 function escHtml(s) {
@@ -591,7 +591,7 @@ function isCorporateCardSubject(subject) {
 }
 function corporateCardBadge(subject) {
   return isCorporateCardSubject(subject)
-    ? '<span class="status-pill bg-violet-100 text-violet-700 ml-2">Corporate Card</span>'
+    ? '<span class="status-pill ml-2" style="background:#f5f3ff;color:#6d28d9;border:1.5px solid #c4b5fd;"><span style="width:7px;height:7px;border-radius:50%;background:#8b5cf6;display:inline-block;flex-shrink:0;"></span>Corporate Card</span>'
     : '';
 }
 function initials(name) {
@@ -865,7 +865,7 @@ async function renderDashboard() {
 
   const cards = [
     { label:'Total Requests', value:d.totalRequests, grad:'grad-purple', icon:'list' },
-    { label:'Pending Verification', value:verificationPendingCount, grad:'grad-blue', icon:'check' },
+    { label:'Pending Verification', value:verificationPendingCount, grad:'grad-pink', icon:'check' },
     { label:'Pending Audit', value:auditPendingCount, grad:'grad-orange', icon:'check' },
     { label:'Pending Payment', value:paymentPendingCount, grad:'grad-blue', icon:'cash' },
     { label:'Completed', value:d.completed, grad:'grad-green', icon:'check' },
@@ -938,9 +938,9 @@ async function renderDashboard() {
     </div>
   `;
 
-  const palette = ['#7c3aed','#ec4899','#0ea5e9','#10b981','#f97316','#ef4444','#6366f1','#14b8a6','#f59e0b','#f43f5e'];
   const statusLabels = Object.keys(d.statusBreakdown);
-  drawChart('statusChart', 'doughnut', statusLabels, [{ data: Object.values(d.statusBreakdown), backgroundColor: palette }]);
+  const statusPalette = statusLabels.map(s => (STATUS_COLORS[s] || { dot:'#94a3b8' }).dot);
+  drawChart('statusChart', 'doughnut', statusLabels, [{ data: Object.values(d.statusBreakdown), backgroundColor: statusPalette }]);
 
   const typeLabels = Object.keys(d.claimTypeBreakdown);
   drawChart('claimTypeChart', 'bar', typeLabels, [{ label:'Claim Value', data: Object.values(d.claimTypeBreakdown), backgroundColor:'#7c3aed', borderRadius:8 }]);
@@ -1030,9 +1030,9 @@ async function renderCorporateCardDashboard() {
     </div>
   `;
 
-  const palette = ['#7c3aed','#ec4899','#0ea5e9','#10b981','#f97316','#ef4444','#6366f1','#14b8a6','#f59e0b','#f43f5e'];
   const statusLabels = Object.keys(d.statusBreakdown);
-  drawChart('corpCardStatusChart', 'doughnut', statusLabels, [{ data: Object.values(d.statusBreakdown), backgroundColor: palette }]);
+  const statusPalette = statusLabels.map(s => (STATUS_COLORS[s] || { dot:'#94a3b8' }).dot);
+  drawChart('corpCardStatusChart', 'doughnut', statusLabels, [{ data: Object.values(d.statusBreakdown), backgroundColor: statusPalette }]);
 }
 
 /* =========================================================
@@ -1381,7 +1381,7 @@ function applyEmployee(emp) {
   resultEl.innerHTML = `<div class="flex items-center gap-3 bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
     <div class="w-9 h-9 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shrink-0">${initials(name)}</div>
     <div class="min-w-0"><p class="text-sm font-bold text-gray-800 truncate">${name}</p><p class="text-xs text-gray-500">${code} · ${designation} · ${department}</p></div>
-    ${resigned ? '<span class="status-pill bg-red-100 text-red-700 ml-auto shrink-0">Resigned</span>' : ''}
+    ${resigned ? '<span class="status-pill ml-auto shrink-0" style="background:#fff1f2;color:#be123c;border:1.5px solid #fda4af;"><span style="width:7px;height:7px;border-radius:50%;background:#f43f5e;display:inline-block;flex-shrink:0;"></span>Resigned</span>' : ''}
   </div>`;
 }
 
@@ -1779,7 +1779,7 @@ function renderDetailTab(tab, d) {
       <div class="border border-gray-100 rounded-xl p-4 mb-3">
         <div class="flex justify-between items-center mb-2">
           <p class="text-xs font-bold text-gray-500">${q.RaisedBy} · ${fmtDateTime(q.RaisedAt)}</p>
-          <span class="status-pill ${q.Status==='Open'?'bg-red-100 text-red-700':'bg-emerald-100 text-emerald-700'}">${q.Status}</span>
+          <span class="status-pill" style="${q.Status==='Open'?'background:#fff1f2;color:#be123c;border:1.5px solid #fda4af;':'background:#f0fdf4;color:#15803d;border:1.5px solid #86efac;'}"><span style="width:7px;height:7px;border-radius:50%;background:${q.Status==='Open'?'#f43f5e':'#22c55e'};display:inline-block;flex-shrink:0;"></span>${q.Status}</span>
         </div>
         <p class="text-sm mb-2">${q.QueryText}</p>
         ${q.ResponseText ? `<div class="bg-gray-50 rounded-lg p-3 mt-2"><p class="text-xs font-bold text-gray-500 mb-1">Response by ${q.RespondedBy} · ${fmtDateTime(q.RespondedAt)}</p><p class="text-sm">${q.ResponseText}</p></div>` : ''}
