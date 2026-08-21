@@ -1711,19 +1711,27 @@ async function renderRequestList(filters) {
   const multiTeam = STATE.user.teamAccess && STATE.user.teamAccess.length > 1;
   const teams = multiTeam ? [...new Set(STATE.user.teamAccess)] : [];
 
+  // Build unique team and status lists from actual loaded rows
+  const allTeams    = [...new Set(rows.map(r => r.Team).filter(Boolean))].sort();
+  const allStatuses = [...new Set(rows.map(r => r.Status).filter(Boolean))].sort();
+
   c.innerHTML = `
     <div class="card overflow-hidden">
-      <div class="p-5 flex items-center justify-between border-b border-gray-100">
-        <div class="flex items-center gap-2">
-          <input id="listSearchBox" class="field !w-72" placeholder="Filter by request ID, employee, subject..." value="${filters.search || ''}">
-          <button class="btn btn-outline" onclick="applyListFilter()">Filter</button>
-          ${multiTeam ? `
-            <select id="listTeamFilter" class="field !w-56" onchange="applyListTeamFilter()">
-              <option value="">All Teams</option>
-              ${teams.map(t => `<option value="${t}">${t}</option>`).join('')}
-            </select>` : ''}
+      <div class="p-5 flex flex-wrap items-center gap-2 border-b border-gray-100">
+        <div class="flex flex-wrap items-center gap-2 flex-1 min-w-0">
+          <input id="listSearchBox" class="field !w-64" placeholder="Filter by request ID, employee, subject..." value="${filters.search || ''}">
+          <select id="listTeamFilter" class="field !w-44" onchange="applyListLocalFilter()">
+            <option value="">All Teams</option>
+            ${allTeams.map(t => `<option value="${escHtml(t)}">${escHtml(t)}</option>`).join('')}
+          </select>
+          <select id="listStatusFilter" class="field !w-52" onchange="applyListLocalFilter()">
+            <option value="">All Statuses</option>
+            ${allStatuses.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('')}
+          </select>
+          <button class="btn btn-outline" onclick="applyListFilter()">Search</button>
+          <button class="btn btn-outline text-xs" onclick="clearListFilters()">Clear</button>
         </div>
-        <button class="btn btn-outline" onclick="exportListExcel(this)">Export Excel</button>
+        <button class="btn btn-outline shrink-0" onclick="exportListExcel(this)">Export Excel</button>
       </div>
       <div class="overflow-x-auto">
         <table class="data-table" id="listTable">
@@ -1759,10 +1767,21 @@ function applyListFilter() {
   renderRequestList({ ...(STATE._listFilters || {}), search });
 }
 
-function applyListTeamFilter() {
-  const team = document.getElementById('listTeamFilter').value;
-  const rows = (STATE._listRows || []).filter(r => !team || r.Team === team);
-  const rowHtml = r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})">
+// Client-side filter by team + status dropdowns without re-fetching from server
+function applyListLocalFilter() {
+  const team   = (document.getElementById('listTeamFilter')   || {}).value || '';
+  const status = (document.getElementById('listStatusFilter') || {}).value || '';
+  const search = (document.getElementById('listSearchBox')    || {}).value.trim().toLowerCase();
+  const rows = (STATE._listRows || []).filter(r => {
+    if (team   && r.Team   !== team)   return false;
+    if (status && r.Status !== status) return false;
+    if (search) {
+      const hay = [(r.RequestID||''),(r.EmployeeName||''),(r.DirectName||''),(r.Subject||'')].join(' ').toLowerCase();
+      if (hay.indexOf(search) === -1) return false;
+    }
+    return true;
+  });
+  const listRowHtml = r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})">
       <td class="font-bold text-brand-700">${r.RequestID}</td>
       <td>${fmtDate(r.EntryDate)}</td>
       <td>${r.PartyType === 'Direct' ? (r.DirectName || '—') : r.EmployeeName}<br><span class="text-xs text-gray-400">${r.PartyType === 'Direct' ? (r.DirectType || 'Direct') : r.EmployeeCode}</span></td>
@@ -1773,8 +1792,21 @@ function applyListTeamFilter() {
       <td>${statusPill(r.Status)}</td>
       <td><svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></td>
     </tr>`;
-  document.querySelector('#listTable tbody').innerHTML = rows.length ? rows.map(rowHtml).join('') : `<tr><td colspan="9" class="text-center text-gray-400 py-10">No requests found.</td></tr>`;
+  document.querySelector('#listTable tbody').innerHTML = rows.length ? rows.map(listRowHtml).join('') : `<tr><td colspan="9" class="text-center text-gray-400 py-10">No requests found.</td></tr>`;
 }
+
+function clearListFilters() {
+  const t = document.getElementById('listTeamFilter');
+  const s = document.getElementById('listStatusFilter');
+  const b = document.getElementById('listSearchBox');
+  if (t) t.value = '';
+  if (s) s.value = '';
+  if (b) b.value = '';
+  applyListLocalFilter();
+}
+
+// Keep old name as alias (was used by Viewer multi-team dropdown)
+function applyListTeamFilter() { applyListLocalFilter(); }
 
 /* =========================================================
    PENDING TABS  (Audit Pending / Approval Pending / Payment Pending)
