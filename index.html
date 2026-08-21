@@ -268,6 +268,15 @@
         </div>
       </div>
       <div class="flex items-center gap-3">
+        <div id="listFilterWrap" class="hidden items-center gap-2">
+          <select id="listTeamFilter" class="field !py-2 !w-40 text-sm" onchange="applyListLocalFilter()">
+            <option value="">All Teams</option>
+          </select>
+          <select id="listStatusFilter" class="field !py-2 !w-48 text-sm" onchange="applyListLocalFilter()">
+            <option value="">All Statuses</option>
+          </select>
+          <button class="btn btn-outline !py-2 text-xs" onclick="clearListFilters()">Clear</button>
+        </div>
         <div id="globalSearchWrap" class="relative">
           <input id="globalSearch" class="field !w-64 !py-2 pl-9" placeholder="Search request / employee...">
           <svg class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"/></svg>
@@ -749,6 +758,11 @@ const PAGE_META = {
 function navigate(view, params) {
   if (view === 'requestDetail' && STATE.view !== 'requestDetail') {
     STATE.lastListView = STATE.view;
+  }
+  // Hide the All Requests header filters when leaving that view
+  if (view !== 'allRequests') {
+    const hw = document.getElementById('listFilterWrap');
+    if (hw) { hw.classList.add('hidden'); hw.classList.remove('flex'); }
   }
   STATE.view = view;
   STATE.viewParams = params || {};
@@ -1708,71 +1722,71 @@ async function renderRequestList(filters) {
     rows = (await api('listRequests', filters)).data;
   } catch (e) { toast(e.message, 'error'); }
 
-  const multiTeam = STATE.user.teamAccess && STATE.user.teamAccess.length > 1;
-  const teams = multiTeam ? [...new Set(STATE.user.teamAccess)] : [];
+  STATE._listFilters = filters;
+  STATE._listRows    = rows;
+  STATE._listSort    = { col: null, dir: 1 };
 
-  // Build unique team and status lists from actual loaded rows
+  // Populate the header-bar dropdowns (they live in the sticky nav, not c.innerHTML)
   const allTeams    = [...new Set(rows.map(r => r.Team).filter(Boolean))].sort();
   const allStatuses = [...new Set(rows.map(r => r.Status).filter(Boolean))].sort();
+  const hdrTeam   = document.getElementById('listTeamFilter');
+  const hdrStatus = document.getElementById('listStatusFilter');
+  const hdrWrap   = document.getElementById('listFilterWrap');
+  if (hdrTeam)   hdrTeam.innerHTML   = '<option value="">All Teams</option>'    + allTeams.map(t   => `<option value="${escHtml(t)}">${escHtml(t)}</option>`).join('');
+  if (hdrStatus) hdrStatus.innerHTML = '<option value="">All Statuses</option>' + allStatuses.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('');
+  if (hdrWrap)   { hdrWrap.classList.remove('hidden'); hdrWrap.classList.add('flex'); }
+
+  function thHtml(idx, label) {
+    const active = STATE._listSort.col === idx;
+    const arrow  = active ? (STATE._listSort.dir === 1 ? ' ↑' : ' ↓') : '';
+    return `<th class="cursor-pointer select-none hover:text-brand-700 transition-colors" onclick="sortListCol(${idx})">${label}${arrow ? `<span class='text-brand-500'>${arrow}</span>` : ''}</th>`;
+  }
 
   c.innerHTML = `
     <div class="card overflow-hidden">
       <div class="p-5 flex flex-wrap items-center gap-2 border-b border-gray-100">
         <div class="flex flex-wrap items-center gap-2 flex-1 min-w-0">
-          <input id="listSearchBox" class="field !w-64" placeholder="Filter by request ID, employee, subject..." value="${filters.search || ''}">
-          <select id="listTeamFilter" class="field !w-44" onchange="applyListLocalFilter()">
-            <option value="">All Teams</option>
-            ${allTeams.map(t => `<option value="${escHtml(t)}">${escHtml(t)}</option>`).join('')}
-          </select>
-          <select id="listStatusFilter" class="field !w-52" onchange="applyListLocalFilter()">
-            <option value="">All Statuses</option>
-            ${allStatuses.map(s => `<option value="${escHtml(s)}">${escHtml(s)}</option>`).join('')}
-          </select>
+          <input id="listSearchBox" class="field !w-64" placeholder="Filter by request ID, employee, subject..." value="${escHtml(filters.search || '')}">
           <button class="btn btn-outline" onclick="applyListFilter()">Search</button>
-          <button class="btn btn-outline text-xs" onclick="clearListFilters()">Clear</button>
         </div>
         <button class="btn btn-outline shrink-0" onclick="exportListExcel(this)">Export Excel</button>
       </div>
       <div class="overflow-x-auto">
         <table class="data-table" id="listTable">
           <thead><tr>
-            <th>Request ID</th><th>Date</th><th>Employee</th><th>Team</th><th>Subject</th><th>Claim Type</th><th>Amount</th><th>Status</th><th></th>
+            ${['Request ID','Date','Employee','Team','Subject','Claim Type','Amount','Status'].map((l,i) => thHtml(i,l)).join('')}
+            <th></th>
           </tr></thead>
-          <tbody>
-            ${rows.length ? rows.map(rowHtml).join('') : `<tr><td colspan="9" class="text-center text-gray-400 py-10">No requests found.</td></tr>`}
-          </tbody>
+          <tbody>${listRowsHtml(rows)}</tbody>
         </table>
       </div>
     </div>`;
-  STATE._listFilters = filters;
-  STATE._listRows = rows;
-
-  function rowHtml(r) {
-    return `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})">
-      <td class="font-bold text-brand-700">${r.RequestID}</td>
-      <td>${fmtDate(r.EntryDate)}</td>
-      <td>${r.PartyType === 'Direct' ? (r.DirectName || '—') : r.EmployeeName}<br><span class="text-xs text-gray-400">${r.PartyType === 'Direct' ? (r.DirectType || 'Direct') : r.EmployeeCode}</span></td>
-      <td>${r.Team || '—'}</td>
-      <td class="max-w-[180px] truncate">${r.Subject}</td>
-      <td>${r.ClaimType}</td>
-      <td class="font-bold">${fmtMoney(r.ClaimAmount)}</td>
-      <td>${statusPill(r.Status)}</td>
-      <td><svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></td>
-    </tr>`;
-  }
 }
 
-function applyListFilter() {
-  const search = document.getElementById('listSearchBox').value.trim();
-  renderRequestList({ ...(STATE._listFilters || {}), search });
+function listRowHtml(r) {
+  return `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})">
+    <td class="font-bold text-brand-700">${r.RequestID}</td>
+    <td>${fmtDate(r.EntryDate)}</td>
+    <td>${r.PartyType === 'Direct' ? (r.DirectName || '—') : r.EmployeeName}<br><span class="text-xs text-gray-400">${r.PartyType === 'Direct' ? (r.DirectType || 'Direct') : r.EmployeeCode}</span></td>
+    <td>${r.Team || '—'}</td>
+    <td class="max-w-[180px] truncate">${r.Subject}</td>
+    <td>${r.ClaimType}</td>
+    <td class="font-bold">${fmtMoney(r.ClaimAmount)}</td>
+    <td>${statusPill(r.Status)}</td>
+    <td><svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></td>
+  </tr>`;
 }
 
-// Client-side filter by team + status dropdowns without re-fetching from server
-function applyListLocalFilter() {
+function listRowsHtml(rows) {
+  return rows.length ? rows.map(listRowHtml).join('') : `<tr><td colspan="9" class="text-center text-gray-400 py-10">No requests found.</td></tr>`;
+}
+
+// Returns the currently filtered (and sorted) rows
+function getFilteredListRows() {
   const team   = (document.getElementById('listTeamFilter')   || {}).value || '';
   const status = (document.getElementById('listStatusFilter') || {}).value || '';
   const search = (document.getElementById('listSearchBox')    || {}).value.trim().toLowerCase();
-  const rows = (STATE._listRows || []).filter(r => {
+  let rows = (STATE._listRows || []).filter(r => {
     if (team   && r.Team   !== team)   return false;
     if (status && r.Status !== status) return false;
     if (search) {
@@ -1781,18 +1795,51 @@ function applyListLocalFilter() {
     }
     return true;
   });
-  const listRowHtml = r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})">
-      <td class="font-bold text-brand-700">${r.RequestID}</td>
-      <td>${fmtDate(r.EntryDate)}</td>
-      <td>${r.PartyType === 'Direct' ? (r.DirectName || '—') : r.EmployeeName}<br><span class="text-xs text-gray-400">${r.PartyType === 'Direct' ? (r.DirectType || 'Direct') : r.EmployeeCode}</span></td>
-      <td>${r.Team || '—'}</td>
-      <td class="max-w-[180px] truncate">${r.Subject}</td>
-      <td>${r.ClaimType}</td>
-      <td class="font-bold">${fmtMoney(r.ClaimAmount)}</td>
-      <td>${statusPill(r.Status)}</td>
-      <td><svg class="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></td>
-    </tr>`;
-  document.querySelector('#listTable tbody').innerHTML = rows.length ? rows.map(listRowHtml).join('') : `<tr><td colspan="9" class="text-center text-gray-400 py-10">No requests found.</td></tr>`;
+  const { col, dir } = STATE._listSort || {};
+  if (col !== null && col !== undefined) {
+    const KEYS = [
+      r => r.RequestID || '',
+      r => r.EntryDate  || '',
+      r => (r.PartyType === 'Direct' ? r.DirectName : r.EmployeeName) || '',
+      r => r.Team        || '',
+      r => r.Subject     || '',
+      r => r.ClaimType   || '',
+      r => Number(r.ClaimAmount) || 0,
+      r => r.Status      || '',
+    ];
+    const fn = KEYS[col];
+    rows = rows.slice().sort((a, b) => {
+      const av = fn(a), bv = fn(b);
+      return (av < bv ? -1 : av > bv ? 1 : 0) * dir;
+    });
+  }
+  return rows;
+}
+
+function applyListLocalFilter() {
+  const tbody = document.querySelector('#listTable tbody');
+  if (tbody) tbody.innerHTML = listRowsHtml(getFilteredListRows());
+}
+
+function sortListCol(idx) {
+  const s = STATE._listSort;
+  if (s.col === idx) { s.dir *= -1; } else { s.col = idx; s.dir = 1; }
+  // Rebuild headers to show updated arrow
+  const ths = document.querySelectorAll('#listTable thead th');
+  const LABELS = ['Request ID','Date','Employee','Team','Subject','Claim Type','Amount','Status'];
+  ths.forEach((th, i) => {
+    if (i >= LABELS.length) return;
+    const active = s.col === i;
+    const arrow  = active ? (s.dir === 1 ? ' ↑' : ' ↓') : '';
+    th.innerHTML = LABELS[i] + (arrow ? `<span class='text-brand-500'>${arrow}</span>` : '');
+  });
+  applyListLocalFilter();
+}
+
+function applyListFilter() {
+  const search = document.getElementById('listSearchBox').value.trim();
+  STATE._listSort = { col: null, dir: 1 };
+  renderRequestList({ ...(STATE._listFilters || {}), search });
 }
 
 function clearListFilters() {
@@ -1805,7 +1852,7 @@ function clearListFilters() {
   applyListLocalFilter();
 }
 
-// Keep old name as alias (was used by Viewer multi-team dropdown)
+// Keep old name as alias
 function applyListTeamFilter() { applyListLocalFilter(); }
 
 /* =========================================================
