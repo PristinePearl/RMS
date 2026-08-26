@@ -194,30 +194,70 @@
 <div id="toastHost" class="fixed top-4 right-4 z-[100] flex flex-col gap-2"></div>
 
 <!-- ============ LOGIN VIEW ============ -->
-<div id="loginView" class="min-h-screen flex items-center justify-center p-4">
-  <div class="w-full max-w-md">
-    <div class="text-center mb-6">
-      <div class="w-20 h-20 bg-white rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-4 p-2">
-    <img
-        src="https://www.pristinepearlpharma.in/images/alt-logo.png"
-        alt="Pristine Pearl Pharma"
-        class="w-full h-full object-contain">
-</div>
-      <h1 class="text-2xl font-display font-bold text-gray-800">Reimbursement Management</h1>
-      <p class="text-sm text-gray-500 mt-1">Pristine Pearl Pharma Pvt Ltd</p>
+<div id="loginView" class="min-h-screen flex items-center justify-center p-4" style="background:linear-gradient(135deg,#f5f3ff 0%,#ede9fe 50%,#ddd6fe 100%);">
+  <div class="w-full max-w-sm">
+
+    <!-- LOGO + TITLE -->
+    <div class="text-center mb-7">
+      <div class="w-20 h-20 bg-white rounded-2xl mx-auto flex items-center justify-center shadow-xl mb-4 p-2" style="box-shadow:0 8px 32px -8px rgba(109,40,217,.25);">
+        <img src="https://www.pristinepearlpharma.in/images/alt-logo.png" alt="Pristine Pearl Pharma" class="w-full h-full object-contain">
+      </div>
+      <h1 class="text-2xl font-display font-bold text-gray-900">Reimbursement Management</h1>
+      <p class="text-sm text-gray-400 mt-1 font-medium">Pristine Pearl Pharma Pvt Ltd</p>
     </div>
-    <div class="card p-7">
-      <div>
-        <label class="label">Username</label>
-        <input id="loginUsername" class="field mb-4" placeholder="Enter username" autocomplete="username">
-        <label class="label">Password</label>
-        <input id="loginPassword" type="password" class="field mb-2" placeholder="Enter password" autocomplete="current-password">
-        <p id="loginError" class="text-red-500 text-xs font-semibold mt-2 hidden"></p>
-        <button id="loginBtn" class="btn btn-primary w-full mt-5 py-3">
-          <span id="loginBtnText">Sign In</span>
-        </button>
+
+    <!-- SAVED ACCOUNTS -->
+    <div id="savedAccountsList" class="mb-4 hidden">
+      <p class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">Saved Accounts</p>
+      <div id="savedAccountsGrid" class="flex flex-col gap-2"></div>
+      <div class="flex items-center gap-3 my-4">
+        <div class="flex-1 h-px bg-gray-200"></div>
+        <span class="text-xs text-gray-400 font-semibold">or sign in with credentials</span>
+        <div class="flex-1 h-px bg-gray-200"></div>
       </div>
     </div>
+
+    <!-- LOGIN CARD -->
+    <div class="card p-7" style="box-shadow:0 4px 24px -6px rgba(109,40,217,.12);">
+      <h2 class="font-display font-bold text-gray-800 text-lg mb-5">Sign In</h2>
+
+      <label class="label">Username</label>
+      <input id="loginUsername" class="field mb-4" placeholder="Enter username" autocomplete="username">
+
+      <label class="label">Password</label>
+      <div class="relative mb-1">
+        <input id="loginPassword" type="password" class="field pr-11" placeholder="Enter password" autocomplete="current-password">
+        <button type="button" id="togglePasswordBtn" onclick="togglePasswordVisibility()"
+          class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-600 transition-colors"
+          title="Show / hide password" aria-label="Toggle password visibility">
+          <svg id="eyeIconShow" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+          </svg>
+          <svg id="eyeIconHide" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.97 9.97 0 012.31-3.81M9.879 9.879A3 3 0 0114.12 14.12M3 3l18 18"/>
+          </svg>
+        </button>
+      </div>
+
+      <p id="loginError" class="text-red-500 text-xs font-semibold mt-2 hidden"></p>
+
+      <!-- SAVE LOGIN CHECKBOX -->
+      <label class="flex items-center gap-2 mt-4 cursor-pointer select-none group">
+        <div class="relative">
+          <input type="checkbox" id="saveLoginCheck" class="sr-only peer">
+          <div class="w-9 h-5 rounded-full bg-gray-200 peer-checked:bg-brand-600 transition-colors"></div>
+          <div class="absolute left-0.5 top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform peer-checked:translate-x-4"></div>
+        </div>
+        <span class="text-sm font-semibold text-gray-600 group-hover:text-gray-800 transition-colors">Save login for quick access</span>
+      </label>
+
+      <button id="loginBtn" class="btn btn-primary w-full mt-5 py-3 text-base">
+        <span id="loginBtnText">Sign In</span>
+      </button>
+    </div>
+
+    <p class="text-center text-xs text-gray-400 mt-5">Saved logins are stored locally on this device only.</p>
   </div>
 </div>
 
@@ -613,6 +653,94 @@ function initials(name) {
 ========================================================= */
 document.getElementById('loginBtn').addEventListener('click', doLogin);
 document.getElementById('loginPassword').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginUsername').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPassword').focus(); });
+
+/* ---------- password show/hide ---------- */
+function togglePasswordVisibility() {
+  const inp = document.getElementById('loginPassword');
+  const show = document.getElementById('eyeIconShow');
+  const hide = document.getElementById('eyeIconHide');
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    show.classList.add('hidden');
+    hide.classList.remove('hidden');
+  } else {
+    inp.type = 'password';
+    show.classList.remove('hidden');
+    hide.classList.add('hidden');
+  }
+}
+
+/* ---------- saved accounts (localStorage) ---------- */
+const SAVED_KEY = 'rms_saved_accounts';
+
+function getSavedAccounts() {
+  try { return JSON.parse(localStorage.getItem(SAVED_KEY) || '{}'); } catch { return {}; }
+}
+function setSavedAccounts(map) {
+  localStorage.setItem(SAVED_KEY, JSON.stringify(map));
+}
+function saveAccount(username, password, fullName, role) {
+  const map = getSavedAccounts();
+  map[username] = { password, fullName: fullName || username, role: role || '' };
+  setSavedAccounts(map);
+}
+function removeSavedAccount(username) {
+  const map = getSavedAccounts();
+  delete map[username];
+  setSavedAccounts(map);
+  renderSavedAccounts();
+}
+
+function renderSavedAccounts() {
+  const map = getSavedAccounts();
+  const keys = Object.keys(map);
+  const wrap = document.getElementById('savedAccountsList');
+  const grid = document.getElementById('savedAccountsGrid');
+  if (!keys.length) { wrap.classList.add('hidden'); return; }
+  wrap.classList.remove('hidden');
+  grid.innerHTML = keys.map(u => {
+    const a = map[u];
+    const av = (a.fullName || u).split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase();
+    return `
+    <div class="flex items-center gap-3 p-3 rounded-xl border border-gray-200 bg-white hover:border-brand-400 hover:shadow-sm transition cursor-pointer group"
+         onclick="quickLogin('${u.replace(/'/g,"\\'")}')">
+      <div class="w-9 h-9 rounded-full grad-purple flex items-center justify-center text-white font-bold text-sm shrink-0">${av}</div>
+      <div class="flex-1 min-w-0">
+        <p class="font-bold text-sm text-gray-800 truncate">${escHtml(a.fullName || u)}</p>
+        <p class="text-xs text-gray-400 truncate">${escHtml(u)}${a.role ? ' · ' + escHtml(a.role) : ''}</p>
+      </div>
+      <button onclick="event.stopPropagation();removeSavedAccount('${u.replace(/'/g,"\\'")}');"
+        class="opacity-0 group-hover:opacity-100 transition text-gray-300 hover:text-red-400 p-1 rounded-lg" title="Remove saved login">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+async function quickLogin(username) {
+  const map = getSavedAccounts();
+  const saved = map[username];
+  if (!saved) return;
+  document.getElementById('loginUsername').value = username;
+  document.getElementById('loginPassword').value = saved.password;
+  await doLogin();
+}
+
+// Fixed demo credentials (also verified server-side against Users sheet when backend is configured)
+const DEMO = {
+  'Entry': { password: 'accounts.entry', role: 'Entry', fullName: 'Accounts Entry User', teamAccess: [] },
+  'Verifier': { password: 'accounts.verifier', role: 'Verifier', fullName: 'Verification User', teamAccess: [] },
+  'Audit': { password: 'commercial.audit', role: 'Audit', fullName: 'Commercial Audit User', teamAccess: [] },
+  'Approver': { password: 'acc2026', role: 'Approver', fullName: 'Approver', teamAccess: [] },
+  'Payments': { password: 'accounts.payments', role: 'Payments', fullName: 'Accounts Payment User', teamAccess: [] },
+  'user01': { password: 'muji@16103', role: 'Viewer', fullName: 'Viewer - Tamil Nadu Team-1', teamAccess: ['Tamil Nadu Team-1'] },
+  'user02': { password: 'uthaytn02@16102', role: 'Viewer', fullName: 'Viewer - TN2 / Delhi / J&K', teamAccess: ['Tamil Nadu Team-2','Delhi Team','J&K Team'] },
+  'user03': { password: 'ec@naseer', role: 'Viewer', fullName: 'Viewer - Kerala / Karnataka / Goa', teamAccess: ['Kerala Team','Karnataka Team','Goa Team'] },
+  'admin': { password: 'yourpassword', role: 'Admin', fullName: 'Full Access User', teamAccess: [] }
+};
 
 async function doLogin() {
   const username = document.getElementById('loginUsername').value.trim();
@@ -623,22 +751,6 @@ async function doLogin() {
 
   const btnText = document.getElementById('loginBtnText');
   btnText.innerHTML = '<svg class="w-4 h-4 spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="9" stroke-opacity=".25"/><path d="M21 12a9 9 0 00-9-9"/></svg> Signing in...';
-
-  // Fixed demo credentials (also verified server-side against Users sheet when backend is configured)
-  const DEMO = {
-    'Entry': { password: 'accounts.entry', role: 'Entry', fullName: 'Accounts Entry User', teamAccess: [] },
-    'Verifier': { password: 'accounts.verifier', role: 'Verifier', fullName: 'Verification User', teamAccess: [] },
-    'Audit': { password: 'commercial.audit', role: 'Audit', fullName: 'Commercial Audit User', teamAccess: [] },
-    'Approver': { password: 'acc2026', role: 'Approver', fullName: 'Approver', teamAccess: [] },
-    'Payments': { password: 'accounts.payments', role: 'Payments', fullName: 'Accounts Payment User', teamAccess: [] },
-    'user01': { password: 'muji@16103', role: 'Viewer', fullName: 'Viewer - Tamil Nadu Team-1',
-      teamAccess: ['Tamil Nadu Team-1'] },
-    'user02': { password: 'uthaytn02@16102', role: 'Viewer', fullName: 'Viewer - TN2 / Delhi / J&K',
-      teamAccess: ['Tamil Nadu Team-2','Delhi Team','J&K Team'] },
-    'user03': { password: 'ec@naseer', role: 'Viewer', fullName: 'Viewer - Kerala / Karnataka / Goa',
-teamAccess: ['Kerala Team','Karnataka Team','Goa Team'] },
-    'admin': { password: 'yourpassword', role: 'Admin', fullName: 'Full Access User', teamAccess: [] }
-  };
 
   try {
     let user = null;
@@ -656,6 +768,13 @@ teamAccess: ['Kerala Team','Karnataka Team','Goa Team'] },
       btnText.textContent = 'Sign In';
       return;
     }
+
+    // Save login if checkbox ticked
+    if (document.getElementById('saveLoginCheck').checked) {
+      saveAccount(username, password, user.fullName, user.role);
+      renderSavedAccounts();
+    }
+
     STATE.user = user;
     sessionStorage.setItem('rms_user', JSON.stringify(user));
     enterApp();
@@ -671,7 +790,11 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
   STATE.user = null;
   document.getElementById('appShell').classList.add('hidden');
   document.getElementById('loginView').classList.remove('hidden');
+  renderSavedAccounts();
 });
+
+// Render saved accounts on page load
+renderSavedAccounts();
 
 function enterApp() {
   document.getElementById('loginView').classList.add('hidden');
@@ -680,7 +803,7 @@ function enterApp() {
   document.getElementById('userFullName').textContent = STATE.user.fullName;
   document.getElementById('userRole').textContent = STATE.user.role + ' Role';
   buildSidebar();
-  loadClaimTypes();
+  // claimTypes loaded on demand in renderNewRequest / renderEditRequest
   const defaultView = NAV_BY_ROLE[STATE.user.role][0].id;
   navigate(defaultView);
 }
@@ -815,102 +938,140 @@ async function renderDashboard() {
   );
   const corpPayload = STATE.user.role === 'Viewer' ? { teamAccess: STATE.user.teamAccess } : {};
 
-  // PERF: both requests are independent of each other, so fire them
-  // together instead of awaiting one after the other — this roughly
-  // halves the time-to-render on the dashboard, which matters most on
-  // slower mobile connections. allSettled means a failure on one call
-  // doesn't block the other from rendering with its own data.
-  const [dashResult, corpResult] = await Promise.allSettled([
-    api('getDashboard', dashPayload),
-    api('getCorporateCardDashboard', corpPayload)
-  ]);
+  const EMPTY_DASH = { totalRequests:0, pendingVerification:0, pendingAudit:0, pendingApproval:0, pendingPayment:0, completed:0, returned:0, totalClaimValue:0, totalAuditedValue:0, totalPaidValue:0, statusBreakdown:{}, claimTypeBreakdown:{}, monthly:{} };
+  const EMPTY_CORP = { entries:0, auditPending:0, auditedApproved:0, totalClaimValue:0, statusBreakdown:{} };
 
-  let d;
-  if (dashResult.status === 'fulfilled') {
-    d = dashResult.value.data;
-  } else {
-    d = { totalRequests:0, pendingVerification:0, pendingAudit:0, pendingApproval:0, pendingPayment:0, completed:0, returned:0, totalClaimValue:0, totalAuditedValue:0, totalPaidValue:0, statusBreakdown:{}, claimTypeBreakdown:{}, monthly:{} };
-    toast('Showing empty dashboard — connect backend for live data', 'info');
-  }
-
-  let corp;
-  if (corpResult.status === 'fulfilled') {
-    corp = corpResult.value.data;
-  } else {
-    corp = { entries:0, auditPending:0, auditedApproved:0, totalClaimValue:0, statusBreakdown:{} };
-  }
-
-  // PENDING-COUNT ACCURACY: the backend's aggregate fields (pendingVerification,
-  // pendingAudit, pendingPayment) only count the single "base" status (e.g. just
-  // "Pending Verification"), but each pending tab's actual list also includes
-  // "Under Verification/Audit", "Query Raised" and "Waiting for Accounts Reply"
-  // requests. That mismatch is what made the sidebar badge (e.g. "1") disagree
-  // with the "N requests" count shown once you open the tab (e.g. "3"). Fix it
-  // by summing the exact per-status counts from statusBreakdown using the same
-  // status list each tab filters on, so the badge always matches the list.
   const sumStatusCounts = (breakdown, statuses) =>
     statuses.reduce((sum, s) => sum + ((breakdown && breakdown[s]) || 0), 0);
 
-  const verificationPendingCount = sumStatusCounts(d.statusBreakdown,
-    ['Pending Verification', 'Under Verification', 'Query Raised', 'Waiting for Accounts Reply']);
-  const auditPendingCount = sumStatusCounts(d.statusBreakdown,
-    ['Pending Commercial Audit', 'Under Audit', 'Query Raised', 'Waiting for Accounts Reply']);
-  const paymentPendingCount = sumStatusCounts(d.statusBreakdown,
-    ['Audit Completed', 'Pending Payment']);
+  // Shimmer placeholder — shown immediately so the user sees structure, not a blank spinner
+  const shimmer = `<div class="animate-pulse bg-gray-200 rounded-xl" style="height:1.5rem;width:60%;margin-bottom:.25rem;"></div>`;
+  const cardShimmer = (grad, icon) => `
+    <div class="card p-5 relative overflow-hidden">
+      <div class="w-10 h-10 ${grad} rounded-xl flex items-center justify-center mb-3 opacity-40">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${ICONS[icon]}</svg>
+      </div>
+      <div class="animate-pulse bg-gray-200 rounded-lg h-7 w-12 mb-2"></div>
+      <div class="animate-pulse bg-gray-100 rounded h-3 w-24"></div>
+    </div>`;
 
-  // PENDING APPROVAL COUNT: getDashboard doesn't return a dedicated
-  // pendingApproval field (only Verification/Audit/Payment are aggregated
-  // server-side), so fall back to reading it out of the status breakdown,
-  // which already carries a "Pending Approval" bucket for the chart.
-  const pendingApprovalCount = (typeof d.pendingApproval === 'number' && d.pendingApproval > 0)
-    ? d.pendingApproval
-    : ((d.statusBreakdown && d.statusBreakdown['Pending Approval']) || 0);
-
-  // Reflect current pending counts as badges on the sidebar tabs.
-  setNavBadge('pendingVerification', verificationPendingCount);
-  setNavBadge('pendingAudit', auditPendingCount);
-  setNavBadge('pendingApproval', pendingApprovalCount);
-  setNavBadge('pendingPayment', paymentPendingCount);
-  setNavBadge('verificationPendingTab', verificationPendingCount);
-  setNavBadge('auditPendingTab', auditPendingCount);
-  setNavBadge('approvalPendingTab', pendingApprovalCount);
-  setNavBadge('paymentPendingTab', paymentPendingCount);
-  setNavBadge('corporateCardDashboard', corp.auditPending);
-
-  const cards = [
-    { label:'Total Requests', value:d.totalRequests, grad:'grad-purple', icon:'list' },
-    { label:'Pending Verification', value:verificationPendingCount, grad:'grad-pink', icon:'check' },
-    { label:'Pending Audit', value:auditPendingCount, grad:'grad-orange', icon:'check' },
-    { label:'Pending Payment', value:paymentPendingCount, grad:'grad-blue', icon:'cash' },
-    { label:'Completed', value:d.completed, grad:'grad-green', icon:'check' },
-    { label:'Returned', value:d.returned, grad:'grad-red', icon:'list' },
-  ];
-  const moneyCards = [
-    { label:'Total Claim Value', value: fmtMoney(d.totalClaimValue), grad:'grad-purple' },
-    { label:'Total Audited Value', value: fmtMoney(d.totalAuditedValue), grad:'grad-blue' },
-    { label:'Total Paid Value', value: fmtMoney(d.totalPaidValue), grad:'grad-green' },
-  ];
-
+  // Render skeleton immediately — no waiting
   c.innerHTML = `
     ${dateFilterBarHtml('dashboard', 'renderDashboard()')}
-    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-      ${cards.map(cd => `
-        <div class="card p-5 relative overflow-hidden">
-          <div class="w-10 h-10 ${cd.grad} rounded-xl flex items-center justify-center mb-3">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${ICONS[cd.icon]}</svg>
+    <div id="dash-stat-cards" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      ${['grad-purple','grad-pink','grad-orange','grad-blue','grad-green','grad-red'].map((g,i) => cardShimmer(g, ['list','check','check','cash','check','list'][i])).join('')}
+    </div>
+    <div id="dash-money-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      ${['linear-gradient(135deg,#7c3aed,#4f46e5)','linear-gradient(135deg,#0ea5e9,#38bdf8)','linear-gradient(135deg,#10b981,#34d399)'].map(bg => `
+        <div class="card p-6" style="background:${bg}">
+          <div class="animate-pulse bg-white/20 rounded h-3 w-28 mb-3"></div>
+          <div class="animate-pulse bg-white/30 rounded-lg h-9 w-36"></div>
+        </div>`).join('')}
+    </div>
+    <div id="dash-corp-card" class="card p-6 mb-6">
+      <div class="flex justify-between items-center mb-4">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 grad-purple rounded-xl flex items-center justify-center flex-shrink-0 opacity-40">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4.5 h-4.5 text-white" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${ICONS.card}</svg>
           </div>
-          <p class="text-2xl font-display font-extrabold text-gray-800">${cd.value}</p>
-          <p class="text-xs text-gray-500 font-semibold mt-1">${cd.label}</p>
-        </div>`).join('')}
+          <h3 class="font-display font-bold text-gray-800">Corporate Card Summary</h3>
+        </div>
+        <button class="btn btn-outline" onclick="navigate('corporateCardDashboard')">View Full Dashboard</button>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        ${['bg-violet-50 border-violet-100 text-brand-700','bg-amber-50 border-amber-100 text-amber-600','bg-emerald-50 border-emerald-100 text-emerald-600'].map(cls => `
+          <div class="p-4 rounded-xl border ${cls.split(' ').slice(0,2).join(' ')}">
+            <div class="animate-pulse bg-gray-200 rounded-lg h-7 w-10 mb-2"></div>
+            <div class="animate-pulse bg-gray-100 rounded h-3 w-20"></div>
+          </div>`).join('')}
+      </div>
+      <div class="animate-pulse bg-gray-100 rounded h-3 w-40 mt-3"></div>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-      ${moneyCards.map(cd => `
-        <div class="card p-6" style="background:${cd.grad==='grad-purple'?'linear-gradient(135deg,#7c3aed,#4f46e5)':cd.grad==='grad-blue'?'linear-gradient(135deg,#0ea5e9,#38bdf8)':'linear-gradient(135deg,#10b981,#34d399)'}">
-          <p class="text-white/80 text-xs font-bold uppercase tracking-wide">${cd.label}</p>
-          <p class="text-white text-3xl font-display font-extrabold mt-2">${cd.value}</p>
-        </div>`).join('')}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div class="card p-6">
+        <h3 class="font-display font-bold text-gray-800 mb-4">Status Breakdown</h3>
+        <canvas id="statusChart" height="220"></canvas>
+      </div>
+      <div class="card p-6">
+        <h3 class="font-display font-bold text-gray-800 mb-4">Claim Value by Type</h3>
+        <canvas id="claimTypeChart" height="220"></canvas>
+      </div>
+      <div class="card p-6 lg:col-span-2">
+        <h3 class="font-display font-bold text-gray-800 mb-4">Monthly Claim Trend</h3>
+        <canvas id="monthlyChart" height="100"></canvas>
+      </div>
     </div>
-    <div class="card p-6 mb-6">
+  `;
+
+  // Helper: patch stat cards with real data once dash API returns
+  function patchDashCards(d) {
+    const verificationPendingCount = sumStatusCounts(d.statusBreakdown,
+      ['Pending Verification', 'Under Verification', 'Query Raised', 'Waiting for Accounts Reply']);
+    const auditPendingCount = sumStatusCounts(d.statusBreakdown,
+      ['Pending Commercial Audit', 'Under Audit', 'Query Raised', 'Waiting for Accounts Reply']);
+    const paymentPendingCount = sumStatusCounts(d.statusBreakdown,
+      ['Audit Completed', 'Pending Payment']);
+    const pendingApprovalCount = (typeof d.pendingApproval === 'number' && d.pendingApproval > 0)
+      ? d.pendingApproval
+      : ((d.statusBreakdown && d.statusBreakdown['Pending Approval']) || 0);
+
+    setNavBadge('pendingVerification', verificationPendingCount);
+    setNavBadge('pendingAudit', auditPendingCount);
+    setNavBadge('pendingApproval', pendingApprovalCount);
+    setNavBadge('pendingPayment', paymentPendingCount);
+    setNavBadge('verificationPendingTab', verificationPendingCount);
+    setNavBadge('auditPendingTab', auditPendingCount);
+    setNavBadge('approvalPendingTab', pendingApprovalCount);
+    setNavBadge('paymentPendingTab', paymentPendingCount);
+
+    const cards = [
+      { label:'Total Requests', value:d.totalRequests, grad:'grad-purple', icon:'list' },
+      { label:'Pending Verification', value:verificationPendingCount, grad:'grad-pink', icon:'check' },
+      { label:'Pending Audit', value:auditPendingCount, grad:'grad-orange', icon:'check' },
+      { label:'Pending Payment', value:paymentPendingCount, grad:'grad-blue', icon:'cash' },
+      { label:'Completed', value:d.completed, grad:'grad-green', icon:'check' },
+      { label:'Returned', value:d.returned, grad:'grad-red', icon:'list' },
+    ];
+    const moneyCards = [
+      { label:'Total Claim Value', value:fmtMoney(d.totalClaimValue), bg:'linear-gradient(135deg,#7c3aed,#4f46e5)' },
+      { label:'Total Audited Value', value:fmtMoney(d.totalAuditedValue), bg:'linear-gradient(135deg,#0ea5e9,#38bdf8)' },
+      { label:'Total Paid Value', value:fmtMoney(d.totalPaidValue), bg:'linear-gradient(135deg,#10b981,#34d399)' },
+    ];
+
+    const statEl = document.getElementById('dash-stat-cards');
+    if (statEl) statEl.innerHTML = cards.map(cd => `
+      <div class="card p-5 relative overflow-hidden">
+        <div class="w-10 h-10 ${cd.grad} rounded-xl flex items-center justify-center mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">${ICONS[cd.icon]}</svg>
+        </div>
+        <p class="text-2xl font-display font-extrabold text-gray-800">${cd.value}</p>
+        <p class="text-xs text-gray-500 font-semibold mt-1">${cd.label}</p>
+      </div>`).join('');
+
+    const moneyEl = document.getElementById('dash-money-cards');
+    if (moneyEl) moneyEl.innerHTML = moneyCards.map(cd => `
+      <div class="card p-6" style="background:${cd.bg}">
+        <p class="text-white/80 text-xs font-bold uppercase tracking-wide">${cd.label}</p>
+        <p class="text-white text-3xl font-display font-extrabold mt-2">${cd.value}</p>
+      </div>`).join('');
+
+    const statusLabels = Object.keys(d.statusBreakdown);
+    const statusPalette = statusLabels.map(s => (STATUS_COLORS[s] || { dot:'#94a3b8' }).dot);
+    drawChart('statusChart', 'doughnut', statusLabels, [{ data: Object.values(d.statusBreakdown), backgroundColor: statusPalette }]);
+
+    const typeLabels = Object.keys(d.claimTypeBreakdown);
+    drawChart('claimTypeChart', 'bar', typeLabels, [{ label:'Claim Value', data: Object.values(d.claimTypeBreakdown), backgroundColor:'#7c3aed', borderRadius:8 }]);
+
+    const monthLabels = Object.keys(d.monthly);
+    drawChart('monthlyChart', 'line', monthLabels, [{ label:'Claim Value', data: Object.values(d.monthly), borderColor:'#4f46e5', backgroundColor:'rgba(124,58,237,.12)', fill:true, tension:.35 }]);
+  }
+
+  // Helper: patch corp card section once corp API returns
+  function patchCorpCard(corp) {
+    setNavBadge('corporateCardDashboard', corp.auditPending);
+    const el = document.getElementById('dash-corp-card');
+    if (!el) return;
+    el.innerHTML = `
       <div class="flex justify-between items-center mb-4">
         <div class="flex items-center gap-2">
           <div class="w-9 h-9 grad-purple rounded-xl flex items-center justify-center flex-shrink-0">
@@ -934,33 +1095,30 @@ async function renderDashboard() {
           <p class="text-xs text-gray-500 font-semibold mt-1">Audited &amp; Approved</p>
         </div>
       </div>
-      <p class="text-xs text-gray-400 mt-3">Total Claim Value: <b class="text-gray-600">${fmtMoney(corp.totalClaimValue)}</b></p>
-    </div>
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-      <div class="card p-6">
-        <h3 class="font-display font-bold text-gray-800 mb-4">Status Breakdown</h3>
-        <canvas id="statusChart" height="220"></canvas>
-      </div>
-      <div class="card p-6">
-        <h3 class="font-display font-bold text-gray-800 mb-4">Claim Value by Type</h3>
-        <canvas id="claimTypeChart" height="220"></canvas>
-      </div>
-      <div class="card p-6 lg:col-span-2">
-        <h3 class="font-display font-bold text-gray-800 mb-4">Monthly Claim Trend</h3>
-        <canvas id="monthlyChart" height="100"></canvas>
-      </div>
-    </div>
-  `;
+      <p class="text-xs text-gray-400 mt-3">Total Claim Value: <b class="text-gray-600">${fmtMoney(corp.totalClaimValue)}</b></p>`;
+  }
 
-  const statusLabels = Object.keys(d.statusBreakdown);
-  const statusPalette = statusLabels.map(s => (STATUS_COLORS[s] || { dot:'#94a3b8' }).dot);
-  drawChart('statusChart', 'doughnut', statusLabels, [{ data: Object.values(d.statusBreakdown), backgroundColor: statusPalette }]);
+  // Fire both calls independently — each patches the DOM as soon as it lands
+  api('getDashboard', dashPayload).then(res => {
+    if (!res || !res.data) { patchDashCards(EMPTY_DASH); return; }
+    const _d = res.data;
+    const d = Object.assign({}, EMPTY_DASH, _d);
+    d.statusBreakdown    = _d.statusBreakdown    || {};
+    d.claimTypeBreakdown = _d.claimTypeBreakdown || {};
+    d.monthly            = _d.monthly            || {};
+    patchDashCards(d);
+  }).catch(() => {
+    patchDashCards(EMPTY_DASH);
+    toast('Showing empty dashboard — connect backend for live data', 'info');
+  });
 
-  const typeLabels = Object.keys(d.claimTypeBreakdown);
-  drawChart('claimTypeChart', 'bar', typeLabels, [{ label:'Claim Value', data: Object.values(d.claimTypeBreakdown), backgroundColor:'#7c3aed', borderRadius:8 }]);
-
-  const monthLabels = Object.keys(d.monthly);
-  drawChart('monthlyChart', 'line', monthLabels, [{ label:'Claim Value', data: Object.values(d.monthly), borderColor:'#4f46e5', backgroundColor:'rgba(124,58,237,.12)', fill:true, tension:.35 }]);
+  api('getCorporateCardDashboard', corpPayload).then(res => {
+    if (!res || !res.data) { patchCorpCard(EMPTY_CORP); return; }
+    const _c = res.data;
+    const corp = Object.assign({}, EMPTY_CORP, _c);
+    corp.statusBreakdown = _c.statusBreakdown || {};
+    patchCorpCard(corp);
+  }).catch(() => patchCorpCard(EMPTY_CORP));
 }
 
 function drawChart(id, type, labels, datasets) {
@@ -1058,6 +1216,8 @@ async function renderCorporateCardDashboard() {
 async function renderEditRequest(requestId) {
   const c = document.getElementById('viewContainer');
   c.innerHTML = '<div class="flex items-center justify-center py-24"><svg class="w-8 h-8 spin text-brand-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3"><circle cx="12" cy="12" r="9" stroke-opacity=".2"/><path d="M21 12a9 9 0 00-9-9"/></svg></div>';
+
+  if (!STATE.claimTypes.length) await loadClaimTypes();
 
   let d;
   try {
@@ -1295,8 +1455,9 @@ async function submitEditRequest(btnEl, requestId, sendToVerifier) {
 /* =========================================================
    NEW REQUEST (ENTRY MODULE)
 ========================================================= */
-function renderNewRequest() {
+async function renderNewRequest() {
   const c = document.getElementById('viewContainer');
+  if (!STATE.claimTypes.length) await loadClaimTypes();
   const claimOpts = STATE.claimTypes.map(t => `<option>${t.ClaimType}</option>`).join('');
   STATE.pendingFiles = { Attachment: [], SponsorSheet: [], MailPDF: [] };
 
