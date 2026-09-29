@@ -335,7 +335,9 @@
    CONFIG
 ========================================================= */
 const API_URL = 'https://script.google.com/macros/s/AKfycbwg09P5UvFFMa5zMyHV4CNhR9l6aJR0UMbwnkCT77QZz99Yohl1iqv6E37PMHgciJxfjw/exec';
-const MANPOWER_API_URL = 'https://script.google.com/macros/s/AKfycbxdOs22qKMLlf-0PCOjb4KHBXW2WtHaWKclaSFW5vRVxfk87d3PltASdbRGcVDi_yabSw/exec';
+const MANPOWER_SHEET_ID = '1xC_TtvoGVLSSarPhGdHAR5hFKsV4U61k_PMS5TVm56w';
+const MANPOWER_SHEET_GID = '1713960785';
+const MANPOWER_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/' + MANPOWER_SHEET_ID + '/gviz/tq?tqx=out:csv&gid=' + MANPOWER_SHEET_GID + '&headers=1';
 
 const STATUS_COLORS = {
   'Draft':                      { bg:'#f1f5f9', color:'#475569', dot:'#94a3b8', border:'#cbd5e1' },
@@ -1616,7 +1618,7 @@ async function lookupMailApprover(btnEl) {
       const match = await quickEmpLookup('f_mailApproverCode');
       if (!match) { toast('No employee found for that Emp ID.', 'error'); return; }
       document.getElementById('f_mailApproverName').value = pickField(match, ['Employee Name','Name']);
-    } catch (e) { toast('Could not reach Manpower system (' + e.message + ').', 'error'); }
+    } catch (e) { toast('Could not reach Manpower sheet (' + e.message + ').', 'error'); }
   });
 }
 
@@ -1641,9 +1643,9 @@ async function lookupRequestForEmployee(btnEl) {
       document.getElementById('f_reqForDesignation').value = designation;
       document.getElementById('f_reqForDepartment').value = department;
       document.getElementById('f_reqForTeam').value = team;
-      resultEl.innerHTML = '<span class="text-emerald-600 font-semibold">✓ Fetched from Manpower system.</span>';
+      resultEl.innerHTML = '<span class="text-emerald-600 font-semibold">✓ Fetched from Manpower sheet.</span>';
     } catch (e) {
-      resultEl.innerHTML = `<span class="text-red-500">Could not reach Manpower system (${e.message}). Enter the details manually below.</span>`;
+      resultEl.innerHTML = `<span class="text-red-500">Could not reach Manpower sheet (${e.message}). Enter the details manually below.</span>`;
     }
   });
 }
@@ -1689,31 +1691,47 @@ function removeFile(category, idx) {
   renderFileList(category);
 }
 
-// Your Manpower Code.gs only routes action=getAllEmployees (and getSummaryStats)
-// through doGet/doPost — there is no "search" action wired up, so we fetch the
-// full employee list once, cache it in memory, and filter client-side.
+// Employee data is read directly from the Manpower Google Sheet (CSV export
+// via the gviz endpoint). The sheet must be shared as "Anyone with the link
+// can view". The list is fetched once, cached in memory, filtered client-side.
+function parseCSV_(text) {
+  const rows = []; let row = [], cur = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i+1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else cur += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') { row.push(cur); cur = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i+1] === '\n') i++;
+      row.push(cur); cur = ''; rows.push(row); row = [];
+    } else cur += c;
+  }
+  if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+
 async function fetchAllEmployees() {
   if (STATE.employeeCache) return STATE.employeeCache;
-  const url = MANPOWER_API_URL + '?action=getAllEmployees';
   let res;
   try {
-    res = await fetch(url);
+    res = await fetch(MANPOWER_SHEET_CSV_URL);
   } catch (e) {
-    throw new Error('Network error reaching the Manpower system. Check your connection.');
+    throw new Error('Network error reaching the Manpower sheet. Check your connection.');
   }
   const text = await res.text();
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch (e) {
-    // The response wasn't JSON — almost always means the Manpower web app
-    // returned an HTML page (a Google sign-in page or an Apps Script error
-    // page) instead of data. Give an actionable message instead of the raw
-    // "Unexpected token '<'" parse error.
-    throw new Error('Manpower system returned a webpage instead of data. Check that the Manpower web app is deployed with "Who has access: Anyone" and that MANPOWER_API_URL points at the latest /exec deployment.');
+  if (!res.ok || /^\s*<(!doctype|html)/i.test(text)) {
+    throw new Error('Manpower sheet is not accessible. Share it as "Anyone with the link can view".');
   }
-  if (!data.success) throw new Error(data.error || 'Manpower API returned an error.');
-  STATE.employeeCache = data.employees || [];
+  const rows = parseCSV_(text).filter(r => r.some(v => String(v).trim() !== ''));
+  if (rows.length < 2) throw new Error('Manpower sheet returned no data.');
+  const headers = rows[0].map(h => String(h).trim());
+  STATE.employeeCache = rows.slice(1).map(r => {
+    const o = {};
+    headers.forEach((h, i) => { if (h) o[h] = (r[i] !== undefined ? r[i] : '').trim(); });
+    return o;
+  });
   return STATE.employeeCache;
 }
 
@@ -1738,7 +1756,7 @@ async function lookupEmployee(btnEl) {
   const q = document.getElementById('empSearch').value.trim();
   const resultEl = document.getElementById('empResult');
   if (!q) return;
-  resultEl.innerHTML = '<p class="text-xs text-gray-400">Searching Manpower system...</p>';
+  resultEl.innerHTML = '<p class="text-xs text-gray-400">Searching Manpower sheet...</p>';
   await withButtonLoading(btnEl, async () => {
   try {
     const employees = await fetchAllEmployees();
@@ -1768,7 +1786,7 @@ async function lookupEmployee(btnEl) {
       }).join('');
     STATE._empMatches = matches;
   } catch (e) {
-    resultEl.innerHTML = `<p class="text-xs text-red-500">Could not reach Manpower system (${e.message}). Enter employee details manually.</p>`;
+    resultEl.innerHTML = `<p class="text-xs text-red-500">Could not reach Manpower sheet (${e.message}). Enter employee details manually.</p>`;
   }
   });
 }
