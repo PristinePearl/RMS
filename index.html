@@ -2694,7 +2694,8 @@ const REPORT_TYPES = [
   {id:'audit-register', label:'Audit Register'},
   {id:'payment-register', label:'Payment Register'},
   {id:'monthly-summary', label:'Monthly Summary'},
-  {id:'corporate-card-register', label:'Corporate Card Register'}
+  {id:'corporate-card-register', label:'Corporate Card Register'},
+  {id:'custom', label:'⚙ Custom Report'}
 ];
 
 function renderReports() {
@@ -2710,7 +2711,7 @@ function renderReports() {
           <h3 class="font-display font-bold text-gray-800" id="reportTitle">Employee-wise</h3>
           <p class="text-xs text-gray-400 mt-0.5">Click a row to expand its request-level detail. Export gives a full detailed register, not just totals.</p>
         </div>
-        <button class="btn btn-outline" onclick="exportReportExcel(this)">Export Excel</button>
+        <button class="btn btn-outline" id="reportExportBtn" onclick="exportReportExcel(this)">Export Excel</button>
       </div>
       <div id="reportContent"><p class="text-gray-400 text-sm">Loading...</p></div>
     </div>`;
@@ -2768,6 +2769,9 @@ async function loadReport(type) {
   document.querySelectorAll('[data-report]').forEach(b => b.classList.toggle('active', b.dataset.report === type));
   document.getElementById('reportTitle').textContent = REPORT_TYPES.find(r => r.id===type).label;
   const el = document.getElementById('reportContent');
+  const hdrExportBtn = document.getElementById('reportExportBtn');
+  if (hdrExportBtn) hdrExportBtn.classList.toggle('hidden', type === 'custom');
+  if (type === 'custom') { STATE._reportType = 'custom'; STATE._reportData = []; renderCustomReport(); return; }
   el.innerHTML = '<p class="text-gray-400 text-sm">Loading...</p>';
   let data = [];
   try {
@@ -3076,6 +3080,325 @@ function exportReportExcel(btnEl) {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailRows), 'Detail');
     XLSX.writeFile(wb, 'Report_' + type + '.xlsx');
     toast('Report downloaded — Summary + Detail sheets.');
+  });
+}
+
+/* =========================================================
+   CUSTOM REPORT BUILDER
+   Stand-alone report (not based on any other report tab). All available
+   fields for every request are loaded — request details plus the latest
+   verification, audit, approval and payment entries — and the user picks
+   which headers to include, chooses Summary / Detailed / Both, and
+   downloads Excel. Honors the From / To date bar and Viewer team limits.
+========================================================= */
+const CUSTOM_PREFERRED_ORDER = ['RequestID','EntryDate','EntryPersonName','MailApproverName','MailApprovalDate','ClaimantName','ClaimantCode','Designation','Department','Team','RequestForName','Subject','ClaimType','ClaimAmount','VerificationDate','VerifiedBy','VerifiedAmount','VerificationAction','VerificationRemarks','AuditDate','AuditedBy','AuditedAmount','AuditAction','AuditRemarks','ApprovalRemarks','ApprovedBy','ApprovedAmount','PaymentDate','PaymentMode','UTRNo','PaidAmount','PaymentRemarks','Status'];
+
+const CUSTOM_REMARK_KEYS = ['VerificationRemarks','AuditRemarks','ApprovalRemarks','PaymentRemarks'];
+function customIsRemark_(k) { return CUSTOM_REMARK_KEYS.indexOf(k) > -1; }
+
+function customLabel_(k) {
+  return String(k).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+}
+function customIsAmount_(k) { return /amount/i.test(k); }
+
+function customState_() {
+  if (!STATE._custom) STATE._custom = { mode: 'both', groupBy: 'Team', amountField: 'ClaimAmount', cols: null };
+  return STATE._custom;
+}
+
+// Loads the base request rows and enriches them with the latest
+// verification / audit / payment / corporate-card details per request.
+async function customLoadData_() {
+  const df = STATE.dateFilters.reports;
+  const mk = type => Object.assign(
+    STATE.user.role === 'Viewer' ? { type, teamAccess: STATE.user.teamAccess } : { type },
+    { fromDate: df.from, toDate: df.to }
+  );
+  // 'party-wise' returns every request (incl. Direct claimants) as a full
+  // detail row: request fields + latest verification/audit/approval/payment.
+  const rows = (await api('getReports', mk('party-wise'))).data || [];
+  const keySet = {};
+  rows.forEach(r => Object.keys(r).forEach(k => { keySet[k] = true; }));
+  CUSTOM_REMARK_KEYS.forEach(k => { keySet[k] = true; });   // fetched only at download time
+  const keys = CUSTOM_PREFERRED_ORDER.filter(k => keySet[k]).concat(Object.keys(keySet).filter(k => CUSTOM_PREFERRED_ORDER.indexOf(k) === -1));
+  return { rows, keys };
+}
+
+async function renderCustomReport() {
+  const el = document.getElementById('reportContent');
+  if (!el) return;
+  el.innerHTML = '<p class="text-gray-400 text-sm">Loading all report fields...</p>';
+  try { STATE._customData = await customLoadData_(); }
+  catch (e) { el.innerHTML = ''; toast(e.message, 'error'); return; }
+  if (!STATE._customTplInit) { STATE._customTplInit = true; customTplApplyLast_(); }
+  customRenderBuilder_();
+}
+
+function customRenderBuilder_() {
+  const el = document.getElementById('reportContent');
+  if (!el) return;
+  const { rows, keys } = STATE._customData;
+  if (!rows.length) { el.innerHTML = '<p class="text-gray-400 text-sm py-6 text-center">No data available for the selected date range.</p>'; return; }
+
+  const cs = customState_();
+  cs.cols = (cs.cols || keys).filter(k => keys.indexOf(k) > -1);
+  if (keys.indexOf(cs.groupBy) === -1) cs.groupBy = keys.indexOf('Team') > -1 ? 'Team' : keys[0];
+  const amountKeys = keys.filter(customIsAmount_);
+  if (amountKeys.indexOf(cs.amountField) === -1) cs.amountField = amountKeys[0] || '';
+
+  const modeBtn = (id, label, hint) => `
+    <label class="flex-1 min-w-[140px] cursor-pointer">
+      <input type="radio" name="cr_mode" value="${id}" class="sr-only peer" ${cs.mode === id ? 'checked' : ''} onchange="customSetMode(this.value)">
+      <div class="border-2 border-gray-200 rounded-xl px-4 py-3 peer-checked:border-brand-500 peer-checked:bg-brand-50 transition">
+        <p class="text-sm font-bold text-gray-800">${label}</p>
+        <p class="text-[11px] text-gray-400 mt-0.5">${hint}</p>
+      </div>
+    </label>`;
+
+  const tpls = customTplAll_();
+  const tplNames = Object.keys(tpls).sort((a, b) => a.localeCompare(b));
+  const curTpl = STATE._customTpl && tpls[STATE._customTpl] ? STATE._customTpl : '';
+  el.innerHTML = `
+    <div class="mb-5 p-4 rounded-xl bg-brand-50 border border-brand-100">
+      <label class="label">Saved Templates</label>
+      <div class="flex flex-wrap items-center gap-2">
+        <select id="cr_tplSelect" class="field sm:!w-72" onchange="customTplSelect(this.value)">
+          <option value="">— New / unsaved —</option>
+          ${tplNames.map(n => `<option value="${escHtml(n)}" ${n === curTpl ? 'selected' : ''}>${escHtml(n)}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary !py-2" onclick="customTplSave()">${curTpl ? 'Update / Save As...' : 'Save Template'}</button>
+        <button class="btn btn-outline !py-2 ${curTpl ? '' : 'hidden'}" onclick="customTplDelete()">Delete</button>
+      </div>
+      <p class="text-[11px] text-gray-400 mt-1.5">Saves the format, group-by, total and selected headers on this device. Choose a template name to apply it.</p>
+    </div>
+
+    <div class="mb-5">
+      <label class="label">1. Report Format</label>
+      <div class="flex flex-wrap gap-3">
+        ${modeBtn('summary', 'Summary', 'Counts &amp; totals by group')}
+        ${modeBtn('detailed', 'Detailed', 'Every request, row by row')}
+        ${modeBtn('both', 'Summary + Detailed', 'Two sheets in one file')}
+      </div>
+      <p class="text-[11px] text-gray-400 mt-1.5">${rows.length} request(s) loaded. Uses the From / To date filter above; leave blank for all dates.</p>
+    </div>
+
+    <div id="cr_groupBlock" class="mb-5 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl ${cs.mode === 'detailed' ? 'hidden' : ''}">
+      <div>
+        <label class="label">2. Summary — Group By</label>
+        <select class="field" onchange="STATE._custom.groupBy=this.value">
+          ${keys.filter(k => !customIsRemark_(k)).map(k => `<option value="${escHtml(k)}" ${k === cs.groupBy ? 'selected' : ''}>${escHtml(customLabel_(k))}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="label">Total Of</label>
+        <select class="field" onchange="STATE._custom.amountField=this.value">
+          ${amountKeys.map(k => `<option value="${escHtml(k)}" ${k === cs.amountField ? 'selected' : ''}>${escHtml(customLabel_(k))}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+
+    <div id="cr_colsBlock" class="mb-5 ${cs.mode === 'summary' ? 'hidden' : ''}">
+      <div class="flex items-center justify-between mb-2">
+        <label class="label !mb-0">3. Detailed — Headers (${keys.length} available)</label>
+        <div class="flex gap-2">
+          <button type="button" class="btn btn-outline !py-1 !px-3 text-xs" onclick="customSelectAllCols(true)">Select all</button>
+          <button type="button" class="btn btn-outline !py-1 !px-3 text-xs" onclick="customSelectAllCols(false)">Clear</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        ${keys.map(k => `
+          <label class="flex items-center gap-2 text-sm font-semibold text-gray-700 bg-gray-50 rounded-lg px-3 py-2 cursor-pointer">
+            <input type="checkbox" class="cr_col" value="${escHtml(k)}" ${cs.cols.indexOf(k) > -1 ? 'checked' : ''} onchange="customToggleCol()"> ${escHtml(customLabel_(k))}
+          </label>`).join('')}
+      </div>
+    </div>
+
+    <div class="flex flex-wrap gap-3 pt-4 border-t border-gray-100">
+      <button class="btn btn-primary" onclick="customDownload(this)">Download Excel</button>
+      <span id="cr_status" class="text-xs text-gray-500 self-center"></span>
+    </div>
+`;
+}
+
+/* ---- Saved templates (browser localStorage, per username) ---- */
+function customTplKey_() { return 'rms_custom_report_templates_' + ((STATE.user && STATE.user.username) || 'user'); }
+function customTplLastKey_() { return 'rms_custom_report_last_' + ((STATE.user && STATE.user.username) || 'user'); }
+function customTplAll_() {
+  try { return JSON.parse(localStorage.getItem(customTplKey_()) || '{}') || {}; } catch (e) { return {}; }
+}
+function customTplStore_(map) {
+  try { localStorage.setItem(customTplKey_(), JSON.stringify(map)); return true; }
+  catch (e) { toast('Could not save template on this device.', 'error'); return false; }
+}
+function customTplApply_(t) {
+  const cs = customState_();
+  cs.mode = t.mode || 'both';
+  cs.groupBy = t.groupBy || cs.groupBy;
+  cs.amountField = t.amountField || cs.amountField;
+  cs.cols = Array.isArray(t.cols) ? t.cols.slice() : null;
+}
+function customTplApplyLast_() {
+  let last = '';
+  try { last = localStorage.getItem(customTplLastKey_()) || ''; } catch (e) {}
+  const t = customTplAll_()[last];
+  if (t) { STATE._customTpl = last; customTplApply_(t); }
+}
+function customTplSelect(name) {
+  STATE._customTpl = name;
+  try { localStorage.setItem(customTplLastKey_(), name); } catch (e) {}
+  if (name) { const t = customTplAll_()[name]; if (t) customTplApply_(t); }
+  customRenderBuilder_();
+}
+function customTplSave() {
+  const cs = customState_();
+  const map = customTplAll_();
+  const def = STATE._customTpl || '';
+  let name = prompt('Template name:', def);
+  if (name === null) return;
+  name = name.trim();
+  if (!name) { toast('Please enter a template name.', 'error'); return; }
+  if (map[name] && name !== def && !confirm('A template named "' + name + '" already exists. Overwrite it?')) return;
+  map[name] = { mode: cs.mode, groupBy: cs.groupBy, amountField: cs.amountField, cols: (cs.cols || []).slice() };
+  if (!customTplStore_(map)) return;
+  STATE._customTpl = name;
+  try { localStorage.setItem(customTplLastKey_(), name); } catch (e) {}
+  customRenderBuilder_();
+  toast('Template "' + name + '" saved.');
+}
+function customTplDelete() {
+  const name = STATE._customTpl;
+  if (!name || !confirm('Delete template "' + name + '"?')) return;
+  const map = customTplAll_();
+  delete map[name];
+  customTplStore_(map);
+  STATE._customTpl = '';
+  try { localStorage.setItem(customTplLastKey_(), ''); } catch (e) {}
+  customRenderBuilder_();
+  toast('Template deleted.');
+}
+
+function customSetMode(v) {
+  STATE._custom.mode = v;
+  document.getElementById('cr_groupBlock').classList.toggle('hidden', v === 'detailed');
+  document.getElementById('cr_colsBlock').classList.toggle('hidden', v === 'summary');
+}
+function customToggleCol() {
+  STATE._custom.cols = Array.from(document.querySelectorAll('.cr_col:checked')).map(i => i.value);
+}
+function customSelectAllCols(on) {
+  document.querySelectorAll('.cr_col').forEach(i => { i.checked = on; });
+  customToggleCol();
+}
+
+function customBuild_(rowsIn, skipRemarks) {
+  const cs = customState_();
+  const rows = rowsIn || STATE._customData.rows;
+  const keys = STATE._customData.keys;
+  const out = { summaryRows: [], detailRows: [], detailHeaders: [] };
+
+  if (cs.mode !== 'detailed') {
+    const gLabel = customLabel_(cs.groupBy);
+    const tLabel = 'Total ' + customLabel_(cs.amountField || 'Amount');
+    const isDate = REPORT_DATE_FIELDS.indexOf(cs.groupBy) > -1;
+    const groups = {}, order = [];
+    rows.forEach(r => {
+      let key = r[cs.groupBy];
+      if (isDate) key = exportDateStr_(key);
+      key = (key === undefined || key === null || key === '') ? '(Blank)' : String(key);
+      if (!groups[key]) { groups[key] = { count: 0, total: 0 }; order.push(key); }
+      groups[key].count += 1;
+      groups[key].total += Number(r[cs.amountField]) || 0;
+    });
+    out.summaryRows = order.map(k => ({ [gLabel]: k, 'Request Count': groups[k].count, [tLabel]: groups[k].total }));
+    out.summaryRows.push({
+      [gLabel]: 'TOTAL',
+      'Request Count': order.reduce((a, k) => a + groups[k].count, 0),
+      [tLabel]: order.reduce((a, k) => a + groups[k].total, 0)
+    });
+  }
+
+  if (cs.mode !== 'summary') {
+    const chosen = keys.filter(k => cs.cols.indexOf(k) > -1 && !(skipRemarks && customIsRemark_(k)));
+    out.detailHeaders = chosen.map(customLabel_);
+    out.detailRows = rows.map(r => {
+      const f = formatRowDatesForExport(r), o = {};
+      chosen.forEach(k => { o[customLabel_(k)] = f[k] === undefined ? '' : f[k]; });
+      return o;
+    });
+  }
+  return out;
+}
+
+function customValidate_() {
+  const cs = customState_();
+  if (cs.mode !== 'summary' && !cs.cols.length) { toast('Select at least one header for the detailed report.', 'error'); return false; }
+  return true;
+}
+
+// Remarks only exist per request, so they are fetched here — at download
+// time only, a few requests at a time — and never kept on the page.
+async function customFetchRemarksForExport_(rows) {
+  const st = document.getElementById('cr_status');
+  const out = {};
+  const ids = rows.map(r => r.RequestID).filter(Boolean);
+  // FAST PATH: one backend call returns every request's remarks at once
+  // (getRemarksBulk in Code.gs). Falls back to the slow per-request fetch
+  // below only if the backend doesn't have that action yet.
+  try {
+    if (st) st.textContent = 'Fetching remarks...';
+    const bulk = (await api('getRemarksBulk', { requestIds: ids })).data || {};
+    if (st) st.textContent = '';
+    const blank = { VerificationRemarks: '', AuditRemarks: '', ApprovalRemarks: '', PaymentRemarks: '' };
+    return rows.map(r => Object.assign({}, r, blank, bulk[r.RequestID] || {}));
+  } catch (e) {
+    toast('Fast remarks fetch not available on the backend yet — using the slower method.', 'info');
+  }
+  let idx = 0, done = 0, failed = 0;
+  // Promise-chain worker (no long-running while/for loop): each worker
+  // fetches one request, then schedules the next until the list is empty.
+  const fetchOne = id => {
+    const payload = STATE.user.role === 'Viewer' ? { requestId: id, teamAccess: STATE.user.teamAccess } : { requestId: id };
+    return api('getRequestDetail', payload).then(res => {
+      const d = res.data;
+      const v = latestOf(d.verifications, 'VerificationDate');
+      const a = latestOf(d.audit, 'AuditDate');
+      const ap = latestOf(d.approvals, 'ApprovalDate');
+      const pm = latestOf(d.payments, 'PaymentDate');
+      out[id] = {
+        VerificationRemarks: v ? (v.VerificationRemarks || '') : '',
+        AuditRemarks: a ? (a.AuditRemarks || '') : '',
+        ApprovalRemarks: ap ? (ap.ApprovalRemarks || '') : '',
+        PaymentRemarks: pm ? (pm.PaymentRemarks || '') : ''
+      };
+    }).catch(() => { failed++; }).then(() => {
+      done++;
+      if (st) st.textContent = 'Preparing remarks for download... ' + done + ' / ' + ids.length;
+    });
+  };
+  const next = () => (idx >= ids.length) ? Promise.resolve() : fetchOne(ids[idx++]).then(next);
+  await Promise.all([next(), next(), next(), next(), next()]);
+  if (failed) toast('Remarks could not be fetched for ' + failed + ' request(s); those cells are blank.', 'info');
+  return rows.map(r => Object.assign({}, r, out[r.RequestID] || {}));
+}
+
+async function customDownload(btnEl) {
+  if (!customValidate_()) return;
+  await withButtonLoading(btnEl, async () => {
+    try {
+      await ensureExcelLib();
+      const cs = STATE._custom;
+      let rows = STATE._customData.rows;
+      // New backend already sends remarks in every report row; only fall back to
+      // the slow per-request fetch if the Apps Script hasn't been updated yet.
+      if (cs.mode !== 'summary' && cs.cols.some(customIsRemark_) && rows.length && !('VerificationRemarks' in rows[0])) rows = await customFetchRemarksForExport_(rows);
+      const b = customBuild_(rows, false);
+      const wb = XLSX.utils.book_new();
+      if (b.summaryRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(b.summaryRows), 'Summary');
+      if (b.detailRows.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(b.detailRows, { header: b.detailHeaders }), 'Detail');
+      XLSX.writeFile(wb, 'Custom_Report_' + cs.mode + '.xlsx');
+      const st = document.getElementById('cr_status'); if (st) st.textContent = '';
+      toast('Custom report downloaded (' + (cs.mode === 'both' ? 'Summary + Detailed' : cs.mode === 'summary' ? 'Summary' : 'Detailed') + ').');
+    } catch (e) { toast(e.message, 'error'); }
   });
 }
 
