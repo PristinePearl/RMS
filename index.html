@@ -3493,7 +3493,16 @@ function buildSummaryHtml(d) {
       const lp = latestOf(d.approvals, 'ApprovalDate');
       const lpay = latestOf(d.payments, 'PaymentDate');
       const dt = v => v ? fmtDate(v) : '—';
-      const dn = (date, name) => (date || name) ? dt(date) + (name ? ' / ' + escHtml(name) : '') : '—';
+      const dayStart = v => { const x = new Date(v); return isNaN(x) ? null : new Date(x.getFullYear(), x.getMonth(), x.getDate()); };
+      const base = req.RequestorMailDate ? dayStart(req.RequestorMailDate) : null;
+      const diff = date => {
+        if (!base || !date) return '';
+        const t = dayStart(date);
+        if (!t) return '';
+        const n = Math.round((t - base) / 86400000);
+        return ' (' + n + (Math.abs(n) === 1 ? ' day' : ' days') + ')';
+      };
+      const dn = (date, name) => (date || name) ? dt(date) + (name ? ' / ' + escHtml(name) : '') + diff(date) : '—';
       const rows = [
         ['Mail Requestor Date', dt(req.RequestorMailDate)],
         ['Mail Approver Date / Name', dn(req.MailApprovalDate, req.MailApproverName)],
@@ -3502,7 +3511,7 @@ function buildSummaryHtml(d) {
         ['Audit Date / Name', dn(la && la.AuditDate, la && (la.AuditedUserName || la.AuditedUser))],
         ['Approver Date / Name', dn(lp && lp.ApprovalDate, lp && (lp.ApprovedUserName || lp.ApprovedUser))]
       ];
-      if (!isCorpCard) rows.push(['Payments Date', dt(lpay && lpay.PaymentDate)]);
+      if (!isCorpCard) rows.push(['Payments Date', lpay && lpay.PaymentDate ? dt(lpay.PaymentDate) + diff(lpay.PaymentDate) : '—']);
       return '<div class="text-sm mb-3">' + rows.map(r => `<p class="mb-0.5"><span class="text-gray-500">${r[0]} :</span> <b>${r[1]}</b></p>`).join('') + '</div>';
     })()}
   </div>`;
