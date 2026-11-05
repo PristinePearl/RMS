@@ -731,19 +731,6 @@ async function quickLogin(username) {
   await doLogin();
 }
 
-// Fixed demo credentials (also verified server-side against Users sheet when backend is configured)
-const DEMO = {
-  'Entry': { password: 'accounts.entry', role: 'Entry', fullName: 'Accounts Entry User', teamAccess: [] },
-  'Verifier': { password: 'accounts.verifier', role: 'Verifier', fullName: 'Verification User', teamAccess: [] },
-  'Audit': { password: 'commercial.audit', role: 'Audit', fullName: 'Commercial Audit User', teamAccess: [] },
-  'Approver': { password: 'acc2026', role: 'Approver', fullName: 'Approver', teamAccess: [] },
-  'Payments': { password: 'accounts.payments', role: 'Payments', fullName: 'Accounts Payment User', teamAccess: [] },
-  'user01': { password: 'muji@16103', role: 'Viewer', fullName: 'Viewer - Tamil Nadu Team-1', teamAccess: ['Tamil Nadu Team-1'] },
-  'user02': { password: 'uthaytn02@16102', role: 'Viewer', fullName: 'Viewer - TN2 / Delhi / J&K', teamAccess: ['Tamil Nadu Team-2','Delhi Team','J&K Team'] },
-  'user03': { password: 'ec@naseer', role: 'Viewer', fullName: 'Viewer - Kerala / Karnataka / Goa', teamAccess: ['Kerala Team','Karnataka Team','Goa Team'] },
-  'admin': { password: 'yourpassword', role: 'Admin', fullName: 'Full Access User', teamAccess: [] }
-};
-
 async function doLogin() {
   const username = document.getElementById('loginUsername').value.trim();
   const password = document.getElementById('loginPassword').value;
@@ -760,9 +747,9 @@ async function doLogin() {
       const res = await api('login', { username, password });
       user = res.user;
     } catch (e) {
-      // fall back to local demo credentials if backend not reachable/configured
-      const d = DEMO[username];
-      if (d && d.password === password) user = { username, role: d.role, fullName: d.fullName, teamAccess: d.teamAccess || [] };
+      const msg = String(e && e.message || '');
+      if (/Invalid username or password/i.test(msg)) user = null;
+      else { errEl.textContent = 'Unable to reach the server. Please check your connection and try again.'; errEl.classList.remove('hidden'); btnText.textContent = 'Sign In'; return; }
     }
     if (!user) {
       errEl.textContent = 'Invalid username or password.';
@@ -1262,6 +1249,7 @@ async function renderEditRequest(requestId) {
         <div><label class="label">Entry Date</label><input type="date" id="f_entryDate" class="field" value="${req.EntryDate ? req.EntryDate.slice(0,10) : ''}"></div>
         <div><label class="label">Entry Person Name</label><input id="f_entryPersonName" class="field" value="${escHtml(req.EntryPersonName || STATE.user.fullName)}"></div>
         <div><label class="label">Mail Received Date</label><input type="date" id="f_mailDate" class="field" value="${req.MailReceivedDate ? req.MailReceivedDate.slice(0,10) : ''}"></div>
+        <div><label class="label">Requestor Mail Date</label><input type="date" id="f_requestorMailDate" class="field" value="${req.RequestorMailDate ? String(req.RequestorMailDate).slice(0,10) : ''}"></div>
         <div>
           <label class="label">Mail Approver — Emp ID</label>
           <div class="flex gap-2">
@@ -1388,6 +1376,7 @@ async function submitEditRequest(btnEl, requestId, sendToVerifier) {
     requestId,
     entryDate:            document.getElementById('f_entryDate').value,
     mailReceivedDate:     document.getElementById('f_mailDate').value,
+    requestorMailDate:    document.getElementById('f_requestorMailDate').value,
     mailApproverEmpCode:  document.getElementById('f_mailApproverCode').value,
     mailApproverName:     document.getElementById('f_mailApproverName').value,
     mailApprovalDate:     document.getElementById('f_mailApprovalDate').value,
@@ -1473,6 +1462,7 @@ async function renderNewRequest() {
         <div><label class="label">Entry Date</label><input type="date" id="f_entryDate" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
         <div><label class="label">Entry Person Name</label><input id="f_entryPersonName" class="field" value="${STATE.user.fullName || ''}" placeholder="Name of the person entering this claim"></div>
         <div><label class="label">Mail Received Date</label><input type="date" id="f_mailDate" class="field"></div>
+        <div><label class="label">Requestor Mail Date</label><input type="date" id="f_requestorMailDate" class="field"></div>
         <div>
           <label class="label">Mail Approver — Emp ID</label>
           <div class="flex gap-2">
@@ -1826,6 +1816,7 @@ async function submitRequest(btnEl, sendToVerifier) {
   const payload = {
     entryDate: document.getElementById('f_entryDate').value,
     mailReceivedDate: document.getElementById('f_mailDate').value,
+    requestorMailDate: document.getElementById('f_requestorMailDate').value,
     mailApproverEmpCode: document.getElementById('f_mailApproverCode').value,
     mailApproverName: document.getElementById('f_mailApproverName').value,
     mailApprovalDate: document.getElementById('f_mailApprovalDate').value,
@@ -2183,6 +2174,7 @@ async function renderRequestDetail(requestId) {
       ${infoItem('Payment For', formatRequestFor(req))}
       ${infoItem('Claim Amount', fmtMoney(req.ClaimAmount))}
       ${infoItem('Entry Date', fmtDate(req.EntryDate))}
+      ${infoItem('Requestor Mail Date', req.RequestorMailDate ? fmtDate(req.RequestorMailDate) : '—')}
       ${infoItem('Entry Person', req.EntryPersonName || req.CreatedBy || '—')}
       ${infoItem('Mail Approver', req.MailApproverName ? req.MailApproverName + (req.MailApprovalDate ? ' · ' + fmtDate(req.MailApprovalDate) : '') : '—')}
     </div>
@@ -3467,6 +3459,7 @@ function buildSummaryHtml(d) {
     ${infoItem('Payment For', formatRequestFor(req))}
     ${infoItem('Claim Amount', fmtMoney(req.ClaimAmount))}
     ${infoItem('Entry Date', fmtDate(req.EntryDate))}
+    ${infoItem('Requestor Mail Date', req.RequestorMailDate ? fmtDate(req.RequestorMailDate) : '—')}
     ${infoItem('Entry Person', req.EntryPersonName || req.CreatedBy || '—')}
     ${infoItem('Mail Approver', req.MailApproverName ? req.MailApproverName + (req.MailApprovalDate?(' · '+fmtDate(req.MailApprovalDate)):'') : '—')}
     ${infoItem('Subject', req.Subject)}
@@ -3494,7 +3487,24 @@ function buildSummaryHtml(d) {
   </div>
   <div>
     <h4 class="font-bold text-sm text-gray-700 mb-2 border-b pb-1">Activity History</h4>
-    ${d.activity.map(a => `<p class="text-xs text-gray-600 mb-1">${fmtDateTime(a.Timestamp)} — <b>${a.Action}</b> by ${a.PerformedBy}</p>`).join('')}
+    ${(() => {
+      const lv = latestOf(d.verifications, 'VerificationDate');
+      const la = latestOf(d.audit, 'AuditDate');
+      const lp = latestOf(d.approvals, 'ApprovalDate');
+      const lpay = latestOf(d.payments, 'PaymentDate');
+      const dt = v => v ? fmtDate(v) : '—';
+      const dn = (date, name) => (date || name) ? dt(date) + (name ? ' / ' + escHtml(name) : '') : '—';
+      const rows = [
+        ['Mail Requestor Date', dt(req.RequestorMailDate)],
+        ['Mail Approver Date / Name', dn(req.MailApprovalDate, req.MailApproverName)],
+        ['Entry Date / Name', dn(req.EntryDate || req.CreatedAt, req.EntryPersonName || req.CreatedBy)],
+        ['Verified Date / Name', dn(lv && lv.VerificationDate, lv && (lv.VerifiedUserName || lv.VerifiedUser))],
+        ['Audit Date / Name', dn(la && la.AuditDate, la && (la.AuditedUserName || la.AuditedUser))],
+        ['Approver Date / Name', dn(lp && lp.ApprovalDate, lp && (lp.ApprovedUserName || lp.ApprovedUser))]
+      ];
+      if (!isCorpCard) rows.push(['Payments Date', dt(lpay && lpay.PaymentDate)]);
+      return '<div class="text-sm mb-3">' + rows.map(r => `<p class="mb-0.5"><span class="text-gray-500">${r[0]} :</span> <b>${r[1]}</b></p>`).join('') + '</div>';
+    })()}
   </div>`;
 }
 
