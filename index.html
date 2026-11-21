@@ -1259,6 +1259,7 @@ async function renderEditRequest(requestId) {
         </div>
         <div><label class="label">Mail Approver Name</label><input id="f_mailApproverName" class="field" value="${escHtml(req.MailApproverName || '')}" readonly></div>
         <div><label class="label">Mail Approval Date</label><input type="date" id="f_mailApprovalDate" class="field" value="${req.MailApprovalDate ? req.MailApprovalDate.slice(0,10) : ''}"></div>
+        <div><label class="label">Doctor Name <span class="normal-case font-semibold text-gray-400">(optional)</span></label><input id="f_doctorName" class="field" placeholder="Dr. name, if applicable" value="${escHtml(req.DoctorName || '')}"></div>
       </div>
     </div>
 
@@ -1380,6 +1381,7 @@ async function submitEditRequest(btnEl, requestId, sendToVerifier) {
     mailApproverEmpCode:  document.getElementById('f_mailApproverCode').value,
     mailApproverName:     document.getElementById('f_mailApproverName').value,
     mailApprovalDate:     document.getElementById('f_mailApprovalDate').value,
+    doctorName:           document.getElementById('f_doctorName').value.trim(),
 
     partyType,
     employeeCode:   partyType === 'Staff' ? document.getElementById('f_empCode').value : '',
@@ -1472,6 +1474,7 @@ async function renderNewRequest() {
         </div>
         <div><label class="label">Mail Approver Name</label><input id="f_mailApproverName" class="field" placeholder="Auto-filled from lookup" readonly></div>
         <div><label class="label">Mail Approval Date</label><input type="date" id="f_mailApprovalDate" class="field"></div>
+        <div><label class="label">Doctor Name <span class="normal-case font-semibold text-gray-400">(optional)</span></label><input id="f_doctorName" class="field" placeholder="Dr. name, if applicable"></div>
       </div>
     </div>
 
@@ -1820,6 +1823,7 @@ async function submitRequest(btnEl, sendToVerifier) {
     mailApproverEmpCode: document.getElementById('f_mailApproverCode').value,
     mailApproverName: document.getElementById('f_mailApproverName').value,
     mailApprovalDate: document.getElementById('f_mailApprovalDate').value,
+    doctorName: document.getElementById('f_doctorName').value.trim(),
 
     partyType: partyType,
     employeeCode: partyType === 'Staff' ? document.getElementById('f_empCode').value : '',
@@ -2177,6 +2181,7 @@ async function renderRequestDetail(requestId) {
       ${infoItem('Requestor Mail Date', req.RequestorMailDate ? fmtDate(req.RequestorMailDate) : '—')}
       ${infoItem('Entry Person', req.EntryPersonName || req.CreatedBy || '—')}
       ${infoItem('Mail Approver', req.MailApproverName ? req.MailApproverName + (req.MailApprovalDate ? ' · ' + fmtDate(req.MailApprovalDate) : '') : '—')}
+      ${req.DoctorName ? infoItem('Doctor Name', escHtml(req.DoctorName)) : ''}
     </div>
     ${req.PartyType === 'Direct' && req.DirectDetails ? `<div class="mt-4 pt-4 border-t border-gray-100"><p class="text-xs text-gray-400 font-semibold mb-1">DIRECT PARTY DETAILS</p><p class="text-sm">${req.DirectDetails}</p></div>` : ''}
     ${req.Subject ? `<div class="mt-4 pt-4 border-t border-gray-100"><p class="text-xs text-gray-400 font-semibold mb-1">SUBJECT</p><p class="text-sm">${req.Subject}</p></div>` : ''}
@@ -3462,6 +3467,7 @@ function buildSummaryHtml(d) {
     ${infoItem('Requestor Mail Date', req.RequestorMailDate ? fmtDate(req.RequestorMailDate) : '—')}
     ${infoItem('Entry Person', req.EntryPersonName || req.CreatedBy || '—')}
     ${infoItem('Mail Approver', req.MailApproverName ? req.MailApproverName + (req.MailApprovalDate?(' · '+fmtDate(req.MailApprovalDate)):'') : '—')}
+    ${req.DoctorName ? infoItem('Doctor Name', escHtml(req.DoctorName)) : ''}
     ${infoItem('Subject', req.Subject)}
   </div>
   <div class="mb-5">
