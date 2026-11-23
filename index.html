@@ -2336,6 +2336,26 @@ function latestOf(arr, dateField) {
   return arr.reduce((latest, r) => (!latest || new Date(r[dateField]) >= new Date(latest[dateField])) ? r : latest, null);
 }
 
+// TEAM CHANGE (Verifier / Audit / Admin): the Verifier and Commercial Audit stages
+// can re-assign the claim's Team while acting on it. Options are the fixed
+// list below; if the request's current team isn't in the list it is still
+// shown (and kept selected) so nothing is silently overwritten.
+const TEAM_OPTIONS = [
+  'Head Office - DMF','Heads Team - DMF','J&K Team - DMF','Karnataka Team - DMF','Kerala Team - DMF',
+  'Mumbai Team - DMF','Regional office - DMF','Tamil Nadu Team-1 - DMF','Tamil Nadu Team-2 - DMF',
+  'Head Office','Heads Team','J&K Team','Karnataka Team','Kerala Team',
+  'Mumbai Team','Regional office','Tamil Nadu Team-1','Tamil Nadu Team-2'
+];
+function teamSelectHtml(id, current) {
+  current = current || '';
+  const opts = TEAM_OPTIONS.slice();
+  if (current && opts.indexOf(current) === -1) opts.unshift(current);
+  return `<select id="${id}" class="field">
+    ${current ? '' : '<option value="">— Select team —</option>'}
+    ${opts.map(t => `<option value="${escHtml(t)}" ${t === current ? 'selected' : ''}>${escHtml(t)}</option>`).join('')}
+  </select>`;
+}
+
 function renderActionsPanel(req, d) {
   d = d || {};
   const latestVerification = latestOf(d.verifications, 'VerificationDate');
@@ -2393,6 +2413,7 @@ function renderActionsPanel(req, d) {
         <div class="col-span-2"><label class="label">Verified By (Name)</label><input type="text" id="v_userName" class="field" value="${STATE.user.fullName}" placeholder="Enter the name of the person verifying this claim"></div>
         <div><label class="label">Verified Amount (₹)</label><input type="number" step="0.01" id="v_amount" class="field" value="${req.ClaimAmount}"></div>
         <div><label class="label">Verification Date</label><input type="date" id="v_date" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div><label class="label">Team</label>${teamSelectHtml('v_team', req.Team)}</div>
         <div class="col-span-2"><label class="label">Verification Remarks / Query Text</label><textarea id="v_remarks" class="field" rows="3"></textarea></div>
       </div>
       <div class="flex flex-wrap gap-3 mt-5">
@@ -2413,6 +2434,7 @@ function renderActionsPanel(req, d) {
         <div class="col-span-2"><label class="label">Audited By (Name)</label><input type="text" id="a_userName" class="field" value="${STATE.user.fullName}" placeholder="Enter the name of the person auditing this claim"></div>
         <div class="col-span-2">${verificationNote}<label class="label">Audited Amount (₹)</label><input type="number" step="0.01" id="a_amount" class="field" value="${latestVerification ? latestVerification.VerifiedAmount : req.ClaimAmount}"></div>
         <div><label class="label">Audit Date</label><input type="date" id="a_date" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div><label class="label">Team</label>${teamSelectHtml('a_team', req.Team)}</div>
         <div class="col-span-2"><label class="label">Audit Remarks / Query Text</label><textarea id="a_remarks" class="field" rows="3"></textarea></div>
       </div>
       <div class="flex flex-wrap gap-3 mt-5">
@@ -2441,6 +2463,7 @@ function renderActionsPanel(req, d) {
         <div class="col-span-2"><label class="label">Approved By (Name)</label><input type="text" id="ap_userName" class="field" value="${STATE.user.fullName}" placeholder="Enter the name of the approver"></div>
         <div class="col-span-2">${auditNote}<label class="label">Approved Amount (₹)</label><input type="number" step="0.01" id="ap_amount" class="field" value="${defaultApproved}"></div>
         <div><label class="label">Approval Date</label><input type="date" id="ap_date" class="field" value="${new Date().toISOString().slice(0,10)}"></div>
+        ${STATE.user.role === 'Admin' ? `<div><label class="label">Team</label>${teamSelectHtml('ap_team', req.Team)}</div>` : ''}
         <div class="col-span-2"><label class="label">Approval Remarks / Query Text</label><textarea id="ap_remarks" class="field" rows="3"></textarea></div>
       </div>
       <div class="flex flex-wrap gap-3 mt-5">
@@ -2610,7 +2633,7 @@ async function doVerify(btnEl, requestId, action) {
   if (action === 'Query' && !verificationRemarks) { toast('Please enter the query text in Remarks.', 'error'); return; }
   await withButtonLoading(btnEl, async () => {
     try {
-      await api('verifierAction', { requestId, verifiedUser: STATE.user.username, verifiedUserName, verifiedAmount, verificationDate, verificationRemarks, action, queryText: verificationRemarks });
+      await api('verifierAction', { requestId, verifiedUser: STATE.user.username, verifiedUserName, verifiedAmount, verificationDate, verificationRemarks, action, queryText: verificationRemarks, team: (document.getElementById('v_team') || {}).value || '' });
       toast('Verification action recorded: ' + action);
       renderRequestDetail(requestId);
     } catch (e) { toast(e.message, 'error'); }
@@ -2625,7 +2648,7 @@ async function doAudit(btnEl, requestId, action) {
   if (action === 'Query' && !auditRemarks) { toast('Please enter the query text in Remarks.', 'error'); return; }
   await withButtonLoading(btnEl, async () => {
     try {
-      await api('auditRequest', { requestId, auditedUser: STATE.user.username, auditedUserName, auditedAmount, auditDate, auditRemarks, action, queryText: auditRemarks });
+      await api('auditRequest', { requestId, auditedUser: STATE.user.username, auditedUserName, auditedAmount, auditDate, auditRemarks, action, queryText: auditRemarks, team: (document.getElementById('a_team') || {}).value || '' });
       toast('Audit action recorded: ' + action);
       renderRequestDetail(requestId);
     } catch (e) { toast(e.message, 'error'); }
@@ -2640,7 +2663,7 @@ async function doApprover(btnEl, requestId, action) {
   if (action === 'Query' && !approvalRemarks) { toast('Please enter the query text in Remarks.', 'error'); return; }
   await withButtonLoading(btnEl, async () => {
     try {
-      await api('approverAction', { requestId, approvedUser: STATE.user.username, approvedUserName, approvedAmount, approvalDate, approvalRemarks, action, queryText: approvalRemarks });
+      await api('approverAction', { requestId, approvedUser: STATE.user.username, approvedUserName, approvedAmount, approvalDate, approvalRemarks, action, queryText: approvalRemarks, team: (document.getElementById('ap_team') || {}).value || '' });
       toast('Approval action recorded: ' + action);
       renderRequestDetail(requestId);
     } catch (e) { toast(e.message, 'error'); }
