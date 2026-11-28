@@ -353,7 +353,8 @@ const STATUS_COLORS = {
   'Payment Released':           { bg:'#f0fdfa', color:'#0f766e', dot:'#14b8a6', border:'#5eead4' },
   'Completed':                  { bg:'#f7fee7', color:'#3f6212', dot:'#84cc16', border:'#bef264' },
   'Returned':                   { bg:'#fff1f2', color:'#9f1239', dot:'#fb7185', border:'#fecdd3' },
-  'Audited & Approved':         { bg:'#ecfdf5', color:'#065f46', dot:'#059669', border:'#6ee7b7' }
+  'Audited & Approved':         { bg:'#ecfdf5', color:'#065f46', dot:'#059669', border:'#6ee7b7' },
+  'Removal':                   { bg:'#f5f3ff', color:'#5b21b6', dot:'#7c3aed', border:'#c4b5fd' }
 };
 
 const NAV_BY_ROLE = {
@@ -1813,6 +1814,9 @@ function applyEmployee(emp) {
 }
 
 async function submitRequest(btnEl, sendToVerifier) {
+  // DOUBLE ENTRY PROTECTION (client side): ignore a second click/tap while the
+  // first save is still in flight. The backend additionally blocks duplicates.
+  if (STATE._submitting) return;
   const partyType = document.querySelector('input[name="f_partyType"]:checked').value;
   const requestForType = document.getElementById('f_requestForType').value;
 
@@ -1861,6 +1865,7 @@ async function submitRequest(btnEl, sendToVerifier) {
   if (requestForType === 'Staff' && !payload.requestForName) {
     toast('Please fetch or enter the Name for "Request For" (Emp ID lookup above).', 'error'); return;
   }
+  STATE._submitting = true;
   await withButtonLoading(btnEl, async () => {
     try {
       const res = await api('createRequest', payload);
@@ -1882,6 +1887,8 @@ async function submitRequest(btnEl, sendToVerifier) {
       navigate('myRequests');
     } catch (e) {
       toast(e.message, 'error');
+    } finally {
+      STATE._submitting = false;
     }
   });
 }
@@ -2370,7 +2377,8 @@ function renderActionsPanel(req, d) {
       'Pending Verification':'Verifier','Under Verification':'Verifier','Waiting for Accounts Reply':'Verifier',
       'Pending Commercial Audit':'Audit','Under Audit':'Audit','Audit Completed':'Audit',
       'Pending Approval':'Approver','Audited & Approved':'Approver',
-      'Payment Released':'Payments'
+      'Payment Released':'Payments',
+      'Removal':'Entry'
     }[req.Status];
     role = stageRole || 'Payments'; // covers 'Pending Payment'
   }
@@ -2420,7 +2428,9 @@ function renderActionsPanel(req, d) {
         <button class="btn btn-green flex-1 sm:flex-none" onclick="doVerify(this,'${req.RequestID}','Approve')">Approve & Send to Audit</button>
         <button class="btn btn-amber flex-1 sm:flex-none" onclick="doVerify(this,'${req.RequestID}','Query')">Raise Query</button>
         <button class="btn btn-red flex-1 sm:flex-none" onclick="doVerify(this,'${req.RequestID}','Return')">Return</button>
-      </div>`;
+        <button class="btn btn-outline flex-1 sm:flex-none" style="border-color:#c4b5fd;color:#5b21b6;" onclick="doVerify(this,'${req.RequestID}','Removal')">Mark Removal</button>
+      </div>
+      <p class="text-xs text-gray-400 mt-3">Removal: remarks are mandatory. The request is closed and excluded from all reports &amp; dashboards; it appears only in the Removals report.</p>`;
     }
     return `<p class="text-sm text-gray-400">No verification actions available at the current status (${req.Status}).</p>`;
   }
@@ -2441,7 +2451,9 @@ function renderActionsPanel(req, d) {
         <button class="btn btn-green flex-1 sm:flex-none" onclick="doAudit(this,'${req.RequestID}','Approve')">Approve</button>
         <button class="btn btn-amber flex-1 sm:flex-none" onclick="doAudit(this,'${req.RequestID}','Query')">Raise Query</button>
         <button class="btn btn-red flex-1 sm:flex-none" onclick="doAudit(this,'${req.RequestID}','Return')">Return</button>
-      </div>`;
+        <button class="btn btn-outline flex-1 sm:flex-none" style="border-color:#c4b5fd;color:#5b21b6;" onclick="doAudit(this,'${req.RequestID}','Removal')">Mark Removal</button>
+      </div>
+      <p class="text-xs text-gray-400 mt-3">Removal: remarks are mandatory. The request is closed and excluded from all reports &amp; dashboards; it appears only in the Removals report.</p>`;
     }
     if (req.Status === 'Audit Completed') {
       return `<p class="text-sm text-gray-500 mb-4">Audit is complete. Route this approved claim to the Payments team.</p>
@@ -2631,6 +2643,10 @@ async function doVerify(btnEl, requestId, action) {
   const verificationRemarks = document.getElementById('v_remarks').value;
   if (!verifiedUserName) { toast('Please enter the name of the person verifying this claim.', 'error'); return; }
   if (action === 'Query' && !verificationRemarks) { toast('Please enter the query text in Remarks.', 'error'); return; }
+  if (action === 'Removal') {
+    if (!verificationRemarks.trim()) { toast('Remarks are required to mark a Removal.', 'error'); return; }
+    if (!confirm('Mark ' + requestId + ' as Removal?\n\nIt will be closed and removed from all reports and dashboards.')) return;
+  }
   await withButtonLoading(btnEl, async () => {
     try {
       await api('verifierAction', { requestId, verifiedUser: STATE.user.username, verifiedUserName, verifiedAmount, verificationDate, verificationRemarks, action, queryText: verificationRemarks, team: (document.getElementById('v_team') || {}).value || '' });
@@ -2646,6 +2662,10 @@ async function doAudit(btnEl, requestId, action) {
   const auditRemarks = document.getElementById('a_remarks').value;
   if (!auditedUserName) { toast('Please enter the name of the person auditing this claim.', 'error'); return; }
   if (action === 'Query' && !auditRemarks) { toast('Please enter the query text in Remarks.', 'error'); return; }
+  if (action === 'Removal') {
+    if (!auditRemarks.trim()) { toast('Remarks are required to mark a Removal.', 'error'); return; }
+    if (!confirm('Mark ' + requestId + ' as Removal?\n\nIt will be closed and removed from all reports and dashboards.')) return;
+  }
   await withButtonLoading(btnEl, async () => {
     try {
       await api('auditRequest', { requestId, auditedUser: STATE.user.username, auditedUserName, auditedAmount, auditDate, auditRemarks, action, queryText: auditRemarks, team: (document.getElementById('a_team') || {}).value || '' });
@@ -2715,15 +2735,24 @@ const REPORT_TYPES = [
   {id:'payment-register', label:'Payment Register'},
   {id:'monthly-summary', label:'Monthly Summary'},
   {id:'corporate-card-register', label:'Corporate Card Register'},
+  {id:'removals-report', label:'⚠ Removals'},
   {id:'custom', label:'⚙ Custom Report'}
 ];
+
+// REMOVALS: only these roles may see the Removals report (the backend
+// re-checks the role from the Users sheet, so this is just UI hiding).
+const REMOVAL_REPORT_ROLES = ['Entry','Verifier','Audit','Admin'];
+function visibleReportTypes_() {
+  const canSee = REMOVAL_REPORT_ROLES.indexOf(STATE.user.role) > -1;
+  return REPORT_TYPES.filter(r => r.id !== 'removals-report' || canSee);
+}
 
 function renderReports() {
   const c = document.getElementById('viewContainer');
   c.innerHTML = `
     ${dateFilterBarHtml('reports', "loadReport(STATE._reportType || 'employee-wise')")}
     <div class="flex flex-wrap gap-2 mb-5">
-      ${REPORT_TYPES.map(r => `<button class="tab-btn ${r.id==='employee-wise'?'active':''}" data-report="${r.id}" onclick="loadReport('${r.id}')">${r.label}</button>`).join('')}
+      ${visibleReportTypes_().map(r => `<button class="tab-btn ${r.id==='employee-wise'?'active':''}" data-report="${r.id}" onclick="loadReport('${r.id}')">${r.label}</button>`).join('')}
     </div>
     <div class="card p-6">
       <div class="flex justify-between items-center mb-4">
@@ -2798,7 +2827,7 @@ async function loadReport(type) {
     const df = STATE.dateFilters.reports;
     const reportPayload = Object.assign(
       STATE.user.role === 'Viewer' ? { type, teamAccess: STATE.user.teamAccess } : { type },
-      { fromDate: df.from, toDate: df.to }
+      { fromDate: df.from, toDate: df.to, username: STATE.user.username }
     );
     data = (await api('getReports', reportPayload)).data;
   } catch (e) { toast(e.message, 'error'); }
@@ -2841,6 +2870,10 @@ async function loadReport(type) {
   } else if (type === 'corporate-card-register') {
     STATE._corpCardRegisterData = data;
     el.innerHTML = corporateCardRegisterHtml(data);
+  } else if (type === 'removals-report') {
+    el.innerHTML = `<table class="data-table"><thead><tr><th>Request ID</th><th>Entry Date</th><th>Entry Person</th><th>Claimant</th><th>Team</th><th>Claim Type</th><th>Amount</th><th>Marked At Stage</th><th>Marked By</th><th>Marked On</th><th>Removal Remarks</th></tr></thead><tbody>
+      ${data.map(r => `<tr class="cursor-pointer" onclick="navigate('requestDetail',{requestId:'${r.RequestID}'})"><td class="font-bold text-brand-700">${r.RequestID}</td><td>${fmtDate(r.EntryDate)}</td><td>${escHtml(r.EntryPersonName||r.CreatedBy||'—')}</td><td>${escHtml(r.ClaimantName||'—')}</td><td>${escHtml(r.Team||'—')}</td><td>${escHtml(r.ClaimType||'')}</td><td class="font-bold">${fmtMoney(r.ClaimAmount)}</td><td>${escHtml(r.RemovalStage||'—')}</td><td>${escHtml(r.RemovalBy||'—')}</td><td>${fmtDate(r.RemovalDate)}</td><td class="whitespace-normal max-w-xs">${formatRemarks(r.RemovalRemarks)}</td></tr>`).join('')}
+    </tbody></table>`;
   }
 }
 
@@ -3018,6 +3051,15 @@ const REPORT_EXPORT_CONFIG = {
     detailColumns: [
       ['Request ID','RequestID'],['Payment Date','PaymentDate'],['Claimant','ClaimantName'],['Team','Team'],
       ['Mode','PaymentMode'],['UTR / Txn No','UTRNo'],['Paid Amount','PaidAmount']
+    ]
+  },
+  'removals-report': {
+    summaryLabel: 'Marked At Stage', groupBy: r => r.RemovalStage || '(Unknown)', amountField: 'ClaimAmount',
+    detailColumns: [
+      ['Request ID','RequestID'],['Entry Date','EntryDate'],['Entry Person', r=>r.EntryPersonName||r.CreatedBy||''],
+      ['Claimant','ClaimantName'],['Team','Team'],['Claim Type','ClaimType'],['Subject','Subject'],['Claim Amount','ClaimAmount'],
+      ['Marked At Stage','RemovalStage'],['Marked By','RemovalBy'],['Marked On', r=>exportDateStr_(r.RemovalDate)],
+      ['Removal Remarks','RemovalRemarks']
     ]
   },
   'corporate-card-register': {
@@ -3488,7 +3530,6 @@ function buildSummaryHtml(d) {
     ${infoItem('Claim Amount', fmtMoney(req.ClaimAmount))}
     ${infoItem('Entry Date', fmtDate(req.EntryDate))}
     ${infoItem('Requestor Mail Date', req.RequestorMailDate ? fmtDate(req.RequestorMailDate) : '—')}
-    ${infoItem('Entry Person', req.EntryPersonName || req.CreatedBy || '—')}
     ${infoItem('Mail Approver', req.MailApproverName ? req.MailApproverName + (req.MailApprovalDate?(' · '+fmtDate(req.MailApprovalDate)):'') : '—')}
     ${req.DoctorName ? infoItem('Doctor Name', escHtml(req.DoctorName)) : ''}
     ${infoItem('Subject', req.Subject)}
@@ -3581,7 +3622,19 @@ function printSummary() {
     styleEl.id = 'printPageSizeStyle';
     document.head.appendChild(styleEl);
   }
-  styleEl.textContent = `@media print{ @page{ size: ${paper} ${orientation}; margin: 10mm; } #printArea{ max-width: none; } }`;
+  // PRINT HEADER/FOOTER FIX: the browser prints its own header (date, page
+  // title) and footer (URL, page no.) inside the page MARGIN area. Setting
+  // @page margin to 0 leaves it no room to draw them, so they disappear.
+  // The 10mm breathing space is recreated as padding on #printArea instead.
+  styleEl.textContent = `@media print{ @page{ size: ${paper} ${orientation}; margin: 0; } #printArea{ max-width: none; padding: 10mm !important; box-sizing: border-box; } }`;
+  // Blank the tab title during printing too (some browsers still print it),
+  // then restore it afterwards.
+  const prevTitle = document.title;
+  document.title = ' ';
+  window.addEventListener('afterprint', function restoreTitle() {
+    document.title = prevTitle;
+    window.removeEventListener('afterprint', restoreTitle);
+  });
   window.print();
 }
 
